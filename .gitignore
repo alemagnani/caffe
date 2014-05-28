@@ -62,3 +62,9 @@ _site
 *.sublime-workspace
 *.sublime-project
 
+# IntellyJ
+.idea
+
+# Nsight
+.project
+.cproject
