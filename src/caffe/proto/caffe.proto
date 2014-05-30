@@ -27,11 +27,11 @@ message Datum {
   // Optionally, the datum could also hold float data.
   repeated float float_data = 6;
 }
-//A sparce vector. Indices are the position in the vector of the non zero entries from data (of float_data)
+//A sparce vector. Indices are the position in the vector of the non zero entries from data (of float_data)	
 message SparseDatum {
   optional int32 size = 1;
   // the actual sparse data, in bytes
-  repeated int32 indices = 2
+  repeated int32 indices = 2;
   optional bytes data = 3;
   optional int32 label = 4;
   // Optionally, the datum could also hold float data.
