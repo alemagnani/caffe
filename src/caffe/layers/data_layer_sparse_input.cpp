@@ -145,7 +145,7 @@ prefetch_data_.reset(new Blob<Dtype>(
   if (output_labels_) {
     prefetch_label_->mutable_cpu_data();
   }
-  data_mean_.cpu_data();
+
   DLOG(INFO) << "Initializing prefetch";
   CreatePrefetchThread();
   DLOG(INFO) << "Prefetch initialized.";
