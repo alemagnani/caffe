@@ -42,7 +42,6 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
     CHECK(layer->iter_->Valid());
     datum.ParseFromString(layer->iter_->value().ToString());
     const string& data = datum.data();
-    const int32 indices;
 
 	// we will prefer to use data() first, and then try float_data()
 	if (data.size()) {
