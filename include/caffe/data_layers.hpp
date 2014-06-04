@@ -125,6 +125,49 @@ class DataLayer : public Layer<Dtype> {
   Caffe::Phase phase_;
 };
 
+////////////////////// data layer with sparse input /////////
+template <typename Dtype>
+void* DataLayerSparseInputPrefetch(void* layer_pointer);
+
+template <typename Dtype>
+class DataLayerSparseInput : public Layer<Dtype> {
+  // The function used to perform prefetching.
+  friend void* DataLayerSparseInputPrefetch<Dtype>(void* layer_pointer);
+
+ public:
+  explicit DataLayerSparseInput(const LayerParameter& param)
+      : Layer<Dtype>(param) {}
+  virtual ~DataLayerSparseInput();
+  virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+
+ protected:
+  virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+
+  virtual void CreatePrefetchThread();
+  virtual void JoinPrefetchThread();
+
+  shared_ptr<leveldb::DB> db_;
+  shared_ptr<leveldb::Iterator> iter_;
+  int datum_size_;
+  int datum_nn_;
+  pthread_t thread_;
+  shared_ptr<Blob<Dtype> > prefetch_data_;
+  shared_ptr<Blob<Dtype> > prefetch_label_;
+
+  bool output_labels_;
+  Caffe::Phase phase_;
+};
+/////////////////////////////////////////////////////
+
+
 // This function is used to create a pthread that prefetches the data.
 template <typename Dtype>
 void* ImageDataLayerPrefetch(void* layer_pointer);

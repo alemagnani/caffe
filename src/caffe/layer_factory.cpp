@@ -32,6 +32,8 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
     return new ConvolutionLayer<Dtype>(param);
   case LayerParameter_LayerType_DATA:
     return new DataLayer<Dtype>(param);
+  case LayerParameter_LayerType_DATA_SPARSE_INPUT:
+      return new DataLayerSparseInput<Dtype>(param);
   case LayerParameter_LayerType_DROPOUT:
     return new DropoutLayer<Dtype>(param);
   case LayerParameter_LayerType_EUCLIDEAN_LOSS:
