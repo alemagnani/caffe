@@ -215,6 +215,42 @@ class ImageDataLayer : public Layer<Dtype> {
 };
 
 
+template <typename Dtype>
+class MemoryDataLayerSparse : public Layer<Dtype> {
+ public:
+  explicit MemoryDataLayerSparse(const LayerParameter& param)
+      : Layer<Dtype>(param) {}
+  virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  // Reset should accept const pointers, but can't, because the memory
+  //  will be given to Blob, which is mutable
+  void Reset(Dtype* data, int* indices, int* ptr,  Dtype* label, int cols, int rows);
+
+  int datum_size() { return datum_size_; }
+  int batch_size() { return batch_size_; }
+
+ protected:
+  virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+
+  Dtype* data_;
+  int* indices_;
+  int* ptr_;
+  Dtype* labels_;
+
+  int datum_size_;
+  int batch_size_;
+  int rows_;
+  int pos_;
+};
+
+
+
+
 // This function is used to create a pthread that prefetches the window data.
 template <typename Dtype>
 void* WindowDataLayerPrefetch(void* layer_pointer);
