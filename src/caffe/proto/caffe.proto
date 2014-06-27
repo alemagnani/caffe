@@ -83,7 +83,7 @@ message SolverParameter {
   optional int32 max_iter = 7; // the maximum number of iterations
   optional string lr_policy = 8; // The learning rate decay policy.
   optional float gamma = 9; // The parameter to compute the learning rate.
-  optional float power = 10; // The parameter to compute the learning rate.
+  optional float power = 10;  // The parameter to compute the learning rate.
   optional float momentum = 11; // The momentum value.
   optional float weight_decay = 12; // The weight decay.
   optional int32 stepsize = 13; // the stepsize for learning rate policy "step"
@@ -115,7 +115,7 @@ message SolverState {
 
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available ID: 23 (last added: memory_data_param)
+// LayerParameter next available ID: 25 (last added: memory_data_sparse_param)
 message LayerParameter {
   repeated string bottom = 2; // the name of the bottom blobs
   repeated string top = 3; // the name of the top blobs
@@ -126,7 +126,7 @@ message LayerParameter {
   // line above the enum. Update the next available ID when you add a new
   // LayerType.
   //
-  // LayerType next available ID: 31 (last added: DATA_SPARSE_INPUT)
+  // LayerType next available ID: 32 (last added: MEMORY_DATA_SPARSE)
   enum LayerType {
     // "NONE" layer type is 0th enum element so that we don't cause confusion
     // by defaulting to an existent LayerType (instead, should usually error if
@@ -151,6 +151,7 @@ message LayerParameter {
     INNER_PRODUCT = 14;
     LRN = 15;
     MEMORY_DATA = 29;
+    MEMORY_DATA_SPARSE = 31;
     MULTINOMIAL_LOGISTIC_LOSS = 16;
     POOLING = 17;
     POWER = 26;
@@ -187,6 +188,7 @@ message LayerParameter {
   optional InnerProductParameter inner_product_param = 17;
   optional LRNParameter lrn_param = 18;
   optional MemoryDataParameter memory_data_param = 22;
+  optional MemoryDataSparseParameter memory_data_sparse_param = 24;
   optional PoolingParameter pooling_param = 19;
   optional PowerParameter power_param = 21;
   optional WindowDataParameter window_data_param = 20;
@@ -330,6 +332,14 @@ message MemoryDataParameter {
   optional uint32 height = 3;
   optional uint32 width = 4;
 }
+
+
+// Message that stores parameters used by MemoryDataSparseLayer
+message MemoryDataSparseParameter {
+  optional uint32 batch_size = 1;
+  optional uint32 size = 2;
+}
+
 
 // Message that stores parameters used by PoolingLayer
 message PoolingParameter {

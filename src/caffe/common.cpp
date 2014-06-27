@@ -22,13 +22,16 @@ int64_t cluster_seedgen(void) {
 
 
 Caffe::Caffe()
-    : mode_(Caffe::CPU), phase_(Caffe::TRAIN), cublas_handle_(NULL),
+    : mode_(Caffe::CPU), phase_(Caffe::TRAIN), cublas_handle_(NULL),cusparse_handle_(NULL),
       curand_generator_(NULL),
       random_generator_() {
   // Try to create a cublas handler, and report an error if failed (but we will
   // keep the program running as one might just want to run CPU code).
   if (cublasCreate(&cublas_handle_) != CUBLAS_STATUS_SUCCESS) {
     LOG(ERROR) << "Cannot create Cublas handle. Cublas won't be available.";
+  }
+  if (cusparseCreate(&cusparse_handle_) != CUSPARSE_STATUS_SUCCESS) {
+      LOG(ERROR) << "Cannot create Cusparse handle. Cusparse won't be available.";
   }
   // Try to create a curand handler.
   if (curandCreateGenerator(&curand_generator_, CURAND_RNG_PSEUDO_DEFAULT)
@@ -41,6 +44,7 @@ Caffe::Caffe()
 
 Caffe::~Caffe() {
   if (cublas_handle_) CUBLAS_CHECK(cublasDestroy(cublas_handle_));
+  if (cusparse_handle_) CUSPARSE_CHECK(cusparseDestroy(cusparse_handle_));
   if (curand_generator_) {
     CURAND_CHECK(curandDestroyGenerator(curand_generator_));
   }
@@ -70,11 +74,13 @@ void Caffe::SetDevice(const int device_id) {
     return;
   }
   if (Get().cublas_handle_) CUBLAS_CHECK(cublasDestroy(Get().cublas_handle_));
+  if (Get().cusparse_handle_) CUSPARSE_CHECK(cusparseDestroy(Get().cusparse_handle_));
   if (Get().curand_generator_) {
     CURAND_CHECK(curandDestroyGenerator(Get().curand_generator_));
   }
   CUDA_CHECK(cudaSetDevice(device_id));
   CUBLAS_CHECK(cublasCreate(&Get().cublas_handle_));
+  CUSPARSE_CHECK(cusparseCreate(&Get().cusparse_handle_));
   CURAND_CHECK(curandCreateGenerator(&Get().curand_generator_,
       CURAND_RNG_PSEUDO_DEFAULT));
   CURAND_CHECK(curandSetPseudoRandomGeneratorSeed(Get().curand_generator_,
@@ -160,6 +166,29 @@ const char* cublasGetErrorString(cublasStatus_t error) {
   }
   return "Unknown cublas status";
 }
+
+const char* cusparseGetErrorString(cusparseStatus_t error) {
+  switch (error) {
+  case CUSPARSE_STATUS_SUCCESS:
+    return "CUSPARSE_STATUS_SUCCESS";
+  case CUSPARSE_STATUS_NOT_INITIALIZED:
+    return "CUSPARSE_STATUS_NOT_INITIALIZED";
+  case CUSPARSE_STATUS_ALLOC_FAILED:
+    return "CUSPARSE_STATUS_ALLOC_FAILED";
+  case CUSPARSE_STATUS_INVALID_VALUE:
+    return "CUSPARSE_STATUS_INVALID_VALUE";
+  case CUSPARSE_STATUS_ARCH_MISMATCH:
+    return "CUSPARSE_STATUS_ARCH_MISMATCH";
+  case CUSPARSE_STATUS_MAPPING_ERROR:
+    return "CUSPARSE_STATUS_MAPPING_ERROR";
+  case CUSPARSE_STATUS_EXECUTION_FAILED:
+    return "CUSPARSE_STATUS_EXECUTION_FAILED";
+  case CUSPARSE_STATUS_INTERNAL_ERROR:
+    return "CUSPARSE_STATUS_INTERNAL_ERROR";
+  }
+  return "Unknown CUSPARSE status";
+}
+
 
 const char* curandGetErrorString(curandStatus_t error) {
   switch (error) {

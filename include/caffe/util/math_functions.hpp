@@ -30,6 +30,23 @@ void caffe_gpu_gemm(const CBLAS_TRANSPOSE TransA,
     const Dtype alpha, const Dtype* A, const Dtype* B, const Dtype beta,
     Dtype* C);
 
+
+//sparse gemm ops /////////////////////////////////////
+template <typename Dtype>
+void caffe_cpu_csr_gemm(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const Dtype alpha, const Dtype* A, const int* indices,const int* ptr, const Dtype* B, const Dtype beta,
+    Dtype* C, const CBLAS_ORDER orderC);
+
+template <typename Dtype>
+void caffe_gpu_csr_gemm(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const Dtype alpha, const Dtype* A, const int* indices,const int* ptr, const Dtype* B, const Dtype beta,
+    Dtype* C, const CBLAS_ORDER orderC);
+/////////////////////////////////////
+
+
+
 template <typename Dtype>
 void caffe_cpu_gemv(const CBLAS_TRANSPOSE TransA, const int M, const int N,
     const Dtype alpha, const Dtype* A, const Dtype* x, const Dtype beta,

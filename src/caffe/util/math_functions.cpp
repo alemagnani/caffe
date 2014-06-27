@@ -3,6 +3,7 @@
 #include <boost/math/special_functions/next.hpp>
 #include <boost/random.hpp>
 #include <cublas_v2.h>
+#include <cusparse_v2.h>
 
 #include <limits>
 
@@ -65,6 +66,56 @@ void caffe_gpu_gemm<double>(const CBLAS_TRANSPOSE TransA,
   CUBLAS_CHECK(cublasDgemm(Caffe::cublas_handle(), cuTransB, cuTransA,
       N, M, K, &alpha, B, ldb, A, lda, &beta, C, N));
 }
+/// sparse /////////////////////////////////
+
+template <>
+void caffe_cpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const float alpha, const float* A, const int* indices,const int* ptr, const float* B, const float beta,
+    float* C, const CBLAS_ORDER orderC){
+
+}
+
+template <>
+void caffe_cpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const double alpha, const double* A, const int* indices,const int* ptr, const double* B, const double beta,
+    double* C, const CBLAS_ORDER orderC){
+
+}
+
+template <>
+void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const float alpha, const float* A, const int* indices, const int* ptr, const float* B, const float beta,
+    float* C, const CBLAS_ORDER orderC) {
+
+//  // Note that cublas follows fortran order.
+//  int lda = (TransA == CblasNoTrans) ? K : M;
+//  int ldb = (TransB == CblasNoTrans) ? N : K;
+//  cusparseOperation_t cuTransA =
+//      (TransA == CblasNoTrans) ? CUSPARSE_OP_N : CUSPARSE_OP_T;
+//  cusparseOperation_t cuTransB =
+//      (TransB == CblasNoTrans) ? CUBLAS_OP_N : CUBLAS_OP_T;
+//  CUSPARSE_CHECK(cusparseScsrmm2(Caffe::cusparse_handle(), cuTransB, cuTransA,
+//      N, M, K, &alpha, B, ldb, A, lda, &beta, C, N));
+
+
+  //cusparseScsrmm2(cusparseHandle_t handle, cusparseOperation_t transA, cusparseOperation_t transB, int m, int n, int k, int nnz, const float *alpha, const cusparseMatDescr_t descrA, const float *csrValA, const int *csrRowPtrA, const int *csrColIndA, B,  ldb, const float *beta, float *C, int ldc)
+
+}
+
+template <>
+void caffe_gpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const double alpha, const double* A, const int* indices, const int* ptr, const double* B, const double beta,
+    double* C, const CBLAS_ORDER orderC) {
+}
+
+
+/// sparse done /////////////////////////////////
+
+
 
 template <>
 void caffe_cpu_gemv<float>(const CBLAS_TRANSPOSE TransA, const int M,

@@ -224,7 +224,7 @@ class MemoryDataLayerSparse : public Layer<Dtype> {
       vector<Blob<Dtype>*>* top);
   // Reset should accept const pointers, but can't, because the memory
   //  will be given to Blob, which is mutable
-  void Reset(Dtype* data, int* indices, int* ptr,  Dtype* label, int cols, int rows);
+  void Reset(Dtype* data, int* indices, int* ptr,  Dtype* label, int rows, int cols);
 
   int datum_size() { return datum_size_; }
   int batch_size() { return batch_size_; }

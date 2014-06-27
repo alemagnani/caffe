@@ -44,7 +44,7 @@ void Solver<Dtype>::Init(const SolverParameter& param) {
     LOG(INFO) << "Creating testing net.";
     test_net_.reset(new Net<Dtype>(param_.test_net()));
     CHECK_GT(param_.test_iter(), 0);
-    CHECK_GT(param_.test_interval(), 0);
+    CHECK_GE(param_.test_interval(), 0);
   }
   LOG(INFO) << "Solver scaffolding done.";
 }
@@ -79,8 +79,11 @@ void Solver<Dtype>::Solve(const char* resume_file) {
   // should be given, and we will just provide dummy vecs.
   vector<Blob<Dtype>*> bottom_vec;
   while (iter_++ < param_.max_iter()) {
+	//LOG(INFO) << "Iteration: " << iter_;
     Dtype loss = net_->ForwardBackward(bottom_vec);
+    //LOG(INFO) << "Forward backward done: " << iter_;
     ComputeUpdateValue();
+    //LOG(INFO) << "ComputeUpdateValue done: " << iter_;
     net_->Update();
 
     if (param_.display() && iter_ % param_.display() == 0) {
