@@ -68,47 +68,128 @@ void caffe_gpu_gemm<double>(const CBLAS_TRANSPOSE TransA,
 }
 /// sparse /////////////////////////////////
 
-template <>
-void caffe_cpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
-    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
-    const float alpha, const float* A, const int* indices,const int* ptr, const float* B, const float beta,
-    float* C, const CBLAS_ORDER orderC){
 
-}
 
 template <>
-void caffe_cpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
-    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
-    const double alpha, const double* A, const int* indices,const int* ptr, const double* B, const double beta,
-    double* C, const CBLAS_ORDER orderC){
-
+void _caffe_cpu_axpy<float>(const int N, const float alpha, const float* X,const int ldx,
+		float* Y,const int ldy){
+	cblas_saxpy(N, alpha, X, ldx, Y, ldy);
 }
+template <>
+void _caffe_cpu_axpy<double>(const int N, const double alpha, const double* X,const int ldx,
+		double* Y,const int ldy){
+	cblas_daxpy(N, alpha, X, ldx, Y, ldy);
+}
+
+
+
+
+
+
+template <typename Dtype>
+void caffe_cpu_csr_gemm(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const Dtype alpha,const int nzz, const Dtype* A, const int* indices,const int* ptr, const Dtype* B, const Dtype beta,
+    Dtype* C, const CBLAS_ORDER orderC){
+	std::cout << "very beginning starting!!!!!!!!!";
+	if (TransA == CblasNoTrans){  //CSR
+		for (int rowA=0; rowA < M; rowA++){
+			std::cout << "starting!!!!!!!!!";
+			const int begin = ptr[rowA];
+			const int end = ptr[rowA+1];
+			std::cout << "rowA: " << rowA << " begin: " << begin << " end: " << end;
+			for (int colC=0; colC < N; colC++){
+				Dtype entry = 0.0;
+				for (int pos = begin; pos < end; pos++){
+					const int colA = indices[pos];
+					std::cout << "colA: " << colA << " pos: " << pos;
+					if (TransB == CblasNoTrans){ //row major
+						entry += A[pos] * B[colA * N + colC];
+					}else{ //col major
+						entry += A[pos] * B[colA + colC * K];
+					}
+				}
+				if (orderC == CblasRowMajor ){
+					const int offsetC = N * rowA + colC;
+					C[offsetC] = beta * C[offsetC] + alpha * entry;
+				}else{
+					const int offsetC = rowA + colC * M;
+					C[offsetC] = beta * C[offsetC] + alpha * entry;
+				}
+			}
+		}
+	}else{  //A is CSC
+		caffe_scal(M * N, alpha, C);
+		for (int colA=0; colA < N; colA++){
+			const int begin = ptr[colA];
+			const int end = ptr[colA+1];
+			for (int pos = begin; pos < end; pos++){
+				Dtype val = A[pos]* alpha;
+				if (orderC == CblasRowMajor ){
+					if (TransB == CblasNoTrans){ //C row major B row major
+						_caffe_cpu_axpy(N, val, B + (colA * N), 1, C + (indices[pos] * N), 1);
+					}else{ //C ro major and B column major
+						_caffe_cpu_axpy(N, val, B + colA, K, C + (indices[pos] * N), 1);
+					}
+				}else{ //C column major
+					if (TransB == CblasNoTrans){  //C colum major, B row major
+						_caffe_cpu_axpy(N, val, B + (colA * N), 1, C + indices[pos] * N, M);
+					}else{  //C column major, B row major
+						_caffe_cpu_axpy(N, val, B + colA, K, C + indices[pos] , M);
+					}
+				}
+			}
+		}
+	}
+}
+
+template void caffe_cpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const float alpha,const int nzz, const float* A, const int* indices,const int* ptr, const float* B, const float beta,
+    float* C, const CBLAS_ORDER orderC);
+
+template void caffe_cpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const double alpha,const int nzz, const double* A, const int* indices,const int* ptr, const double* B, const double beta,
+    double* C, const CBLAS_ORDER orderC);
+
 
 template <>
 void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
     const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
-    const float alpha, const float* A, const int* indices, const int* ptr, const float* B, const float beta,
+    const float alpha, int nzz, const float* A, const int* indices, const int* ptr, const float* B, const float beta,
     float* C, const CBLAS_ORDER orderC) {
 
-//  // Note that cublas follows fortran order.
-//  int lda = (TransA == CblasNoTrans) ? K : M;
-//  int ldb = (TransB == CblasNoTrans) ? N : K;
-//  cusparseOperation_t cuTransA =
-//      (TransA == CblasNoTrans) ? CUSPARSE_OP_N : CUSPARSE_OP_T;
-//  cusparseOperation_t cuTransB =
-//      (TransB == CblasNoTrans) ? CUBLAS_OP_N : CUBLAS_OP_T;
-//  CUSPARSE_CHECK(cusparseScsrmm2(Caffe::cusparse_handle(), cuTransB, cuTransA,
-//      N, M, K, &alpha, B, ldb, A, lda, &beta, C, N));
+	int ldb = (TransB == CblasNoTrans) ? N : K;
 
 
-  //cusparseScsrmm2(cusparseHandle_t handle, cusparseOperation_t transA, cusparseOperation_t transB, int m, int n, int k, int nnz, const float *alpha, const cusparseMatDescr_t descrA, const float *csrValA, const int *csrRowPtrA, const int *csrColIndA, B,  ldb, const float *beta, float *C, int ldc)
 
+	if (orderC == CblasRowMajor){
+		if (TransA == CblasNoTrans){ //this can be done sequentially one row of A at a time
+
+		}else{ //this i am not sure how to do it efficently
+
+		}
+
+
+	}else{
+		//this is the default of CUSPARSE by the Matrix B is by default rowmajor
+		  int ldc = (TransA == CblasNoTrans) ? M : K;
+
+		  cusparseOperation_t cuTransA =
+		      (TransA == CblasNoTrans) ? CUSPARSE_OPERATION_NON_TRANSPOSE : CUSPARSE_OPERATION_TRANSPOSE;
+		  cusparseOperation_t cuTransB =
+		      (TransB == CblasNoTrans) ? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
+		  int msparse = (TransA == CblasNoTrans) ? M : K;
+		  int ksparse = (TransA == CblasNoTrans) ? K : M;
+		  CUSPARSE_CHECK(cusparseScsrmm2(Caffe::cusparse_handle(), cuTransA, cuTransB, msparse, N, ksparse,nzz, &alpha, Caffe::cusparse_mat_descr(), A, ptr, indices, B,  ldb, &beta, C, ldc));
+	}
 }
 
 template <>
 void caffe_gpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
     const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
-    const double alpha, const double* A, const int* indices, const int* ptr, const double* B, const double beta,
+    const double alpha, int nzz, const double* A, const int* indices, const int* ptr, const double* B, const double beta,
     double* C, const CBLAS_ORDER orderC) {
 }
 

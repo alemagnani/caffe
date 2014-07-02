@@ -33,6 +33,12 @@ Caffe::Caffe()
   if (cusparseCreate(&cusparse_handle_) != CUSPARSE_STATUS_SUCCESS) {
       LOG(ERROR) << "Cannot create Cusparse handle. Cusparse won't be available.";
   }
+  if (cusparseCreateMatDescr(&cusparse_mat_descr_) != CUSPARSE_STATUS_SUCCESS) {
+        LOG(ERROR) << "Cannot create Cusparse mat description. Cusparse won't be available.";
+  }else{
+	  cusparseSetMatType(cusparse_mat_descr_,CUSPARSE_MATRIX_TYPE_GENERAL);
+	  cusparseSetMatIndexBase(cusparse_mat_descr_,CUSPARSE_INDEX_BASE_ZERO);
+  }
   // Try to create a curand handler.
   if (curandCreateGenerator(&curand_generator_, CURAND_RNG_PSEUDO_DEFAULT)
       != CURAND_STATUS_SUCCESS ||
@@ -45,6 +51,7 @@ Caffe::Caffe()
 Caffe::~Caffe() {
   if (cublas_handle_) CUBLAS_CHECK(cublasDestroy(cublas_handle_));
   if (cusparse_handle_) CUSPARSE_CHECK(cusparseDestroy(cusparse_handle_));
+  if (cusparse_mat_descr_) CUSPARSE_CHECK(cusparseDestroyMatDescr(cusparse_mat_descr_));
   if (curand_generator_) {
     CURAND_CHECK(curandDestroyGenerator(curand_generator_));
   }
@@ -75,12 +82,17 @@ void Caffe::SetDevice(const int device_id) {
   }
   if (Get().cublas_handle_) CUBLAS_CHECK(cublasDestroy(Get().cublas_handle_));
   if (Get().cusparse_handle_) CUSPARSE_CHECK(cusparseDestroy(Get().cusparse_handle_));
+  if (Get().cusparse_mat_descr_) CUSPARSE_CHECK(cusparseDestroyMatDescr(Get().cusparse_mat_descr_));
   if (Get().curand_generator_) {
     CURAND_CHECK(curandDestroyGenerator(Get().curand_generator_));
   }
   CUDA_CHECK(cudaSetDevice(device_id));
   CUBLAS_CHECK(cublasCreate(&Get().cublas_handle_));
   CUSPARSE_CHECK(cusparseCreate(&Get().cusparse_handle_));
+  CUSPARSE_CHECK(cusparseCreateMatDescr(&Get().cusparse_mat_descr_));
+  cusparseSetMatType(Get().cusparse_mat_descr_,CUSPARSE_MATRIX_TYPE_GENERAL);
+  cusparseSetMatIndexBase(Get().cusparse_mat_descr_,CUSPARSE_INDEX_BASE_ZERO);
+
   CURAND_CHECK(curandCreateGenerator(&Get().curand_generator_,
       CURAND_RNG_PSEUDO_DEFAULT));
   CURAND_CHECK(curandSetPseudoRandomGeneratorSeed(Get().curand_generator_,

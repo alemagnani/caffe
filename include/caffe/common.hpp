@@ -115,6 +115,7 @@ class Caffe {
   }
   inline static cublasHandle_t cublas_handle() { return Get().cublas_handle_; }
   inline static cusparseHandle_t cusparse_handle() { return Get().cusparse_handle_; }
+  inline static cusparseMatDescr_t cusparse_mat_descr(){return Get().cusparse_mat_descr_;}
   inline static curandGenerator_t curand_generator() {
     return Get().curand_generator_;
   }
@@ -142,6 +143,7 @@ class Caffe {
  protected:
   cublasHandle_t cublas_handle_;
   cusparseHandle_t cusparse_handle_;
+  cusparseMatDescr_t cusparse_mat_descr_;
   curandGenerator_t curand_generator_;
   shared_ptr<RNG> random_generator_;
 

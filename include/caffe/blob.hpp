@@ -19,7 +19,7 @@ class Blob {
     const int width);
   virtual void Reshape(const int num, const int channels, const int height,
     const int width);
-  void ReshapeLike(const Blob& other);
+  virtual void ReshapeLike(const Blob& other);
   virtual inline int num() const { return num_; }
   virtual inline int channels() const { return channels_; }
   virtual inline int height() const { return height_; }

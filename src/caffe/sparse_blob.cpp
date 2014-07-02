@@ -33,7 +33,8 @@ void SparseBlob<Dtype>::Reshape(const int num, const int channels, const int nzz
   }
 }
 
-void Reshape(const int num, const int channels, const int height,
+template <typename Dtype>
+void SparseBlob<Dtype>::Reshape(const int num, const int channels, const int height,
    const int width){
 	LOG(FATAL) << "reshape without nzz is not supported";
 }
@@ -49,31 +50,31 @@ SparseBlob<Dtype>::SparseBlob(const int num, const int channels, const int nzz) 
 }
 
 template <typename Dtype>
-void Blob<Dtype>::set_cpu_data(Dtype* data) {
+void SparseBlob<Dtype>::set_cpu_data(Dtype* data) {
 	LOG(FATAL) << "set_cpu_data is not supported";
 }
 
 template <typename Dtype>
-const Dtype* Blob<Dtype>::cpu_diff() const {
+const Dtype* SparseBlob<Dtype>::cpu_diff() const {
 	LOG(FATAL) << "cpu_diff is not supported";
 	return NULL;
 }
 
 template <typename Dtype>
-const Dtype* Blob<Dtype>::gpu_diff() const {
+const Dtype* SparseBlob<Dtype>::gpu_diff() const {
 	LOG(FATAL) << "gpu_diff is not supported";
 		return NULL;
 }
 
 template <typename Dtype>
-Dtype* Blob<Dtype>::mutable_cpu_diff() {
+Dtype* SparseBlob<Dtype>::mutable_cpu_diff() {
 	LOG(FATAL) << "cpu_mutable_diff is not supported";
 			return NULL;
 }
 
 template <typename Dtype>
-Dtype* Blob<Dtype>::mutable_gpu_diff() {
-	LOG(FATAL) << "cpu_mutable_diff is not supported";
+Dtype* SparseBlob<Dtype>::mutable_gpu_diff() {
+	LOG(FATAL) << "gpu_mutable_diff is not supported";
 	return NULL;
 }
 
@@ -128,32 +129,33 @@ int* SparseBlob<Dtype>::mutable_gpu_ptr() {
 }
 
 template <typename Dtype>
-void Blob<Dtype>::ShareData(const Blob& other) {
+void SparseBlob<Dtype>::ShareData(const Blob<Dtype>& other) {
 	LOG(FATAL) << "ShareData is not supported";
 }
 
+
 template <typename Dtype>
-void Blob<Dtype>::ShareDiff(const Blob& other) {
+void SparseBlob<Dtype>::ShareDiff(const Blob<Dtype>& other) {
 	LOG(FATAL) << "ShareDiff is not supported";
 }
 
 template <typename Dtype>
-void Blob<Dtype>::Update() {
+void SparseBlob<Dtype>::Update() {
 	LOG(FATAL) << "Update is not supported";
 }
 
 template <typename Dtype>
-void Blob<Dtype>::CopyFrom(const Blob& source, bool copy_diff, bool reshape) {
+void SparseBlob<Dtype>::CopyFrom(const Blob<Dtype>& source, bool copy_diff, bool reshape) {
 	LOG(FATAL) << "CopyFrom is not supported";
 }
 
 template <typename Dtype>
-void Blob<Dtype>::FromProto(const BlobProto& proto) {
+void SparseBlob<Dtype>::FromProto(const BlobProto& proto) {
 	LOG(FATAL) << "FromProto is not supported";
 }
 
 template <typename Dtype>
-void Blob<Dtype>::ToProto(BlobProto* proto, bool write_diff) const {
+void SparseBlob<Dtype>::ToProto(BlobProto* proto, bool write_diff) const {
 	LOG(FATAL) << "ToProto is not supported";
 }
 

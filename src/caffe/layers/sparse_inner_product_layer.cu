@@ -22,10 +22,11 @@ Dtype SparseInnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bo
   const Dtype* bottom_data = bottomSparseBlob->gpu_data();
   const int*  bottom_indices = bottomSparseBlob->gpu_indices();
   const int* bottom_ptr = bottomSparseBlob->gpu_ptr();
+  const int nzz = bottomSparseBlob->nzz();
 
   Dtype* top_data = (*top)[0]->mutable_gpu_data();
   const Dtype* weight = this->blobs_[0]->gpu_data();
-  caffe_gpu_csr_gemm<Dtype>(CblasNoTrans, CblasTrans, this->M_, this->N_, this->K_, (Dtype)1.,
+  caffe_gpu_csr_gemm<Dtype>(CblasNoTrans, CblasTrans, this->M_, this->N_, this->K_, (Dtype)1., nzz,
       bottom_data, bottom_indices, bottom_ptr, weight, (Dtype)0., top_data, CblasRowMajor);
 
   if (this->bias_term_) {
@@ -46,8 +47,9 @@ void SparseInnerProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
     const Dtype* bottom_data = bottomSparseBlob->gpu_data();
     const int*  bottom_indices = bottomSparseBlob->gpu_indices();
     const int* bottom_ptr = bottomSparseBlob->gpu_ptr();
+    const int nzz = bottomSparseBlob->nzz();
   // Gradient with respect to weight
-  caffe_gpu_csr_gemm<Dtype>(CblasTrans, CblasNoTrans, this->M_, this->K_, this->N_, (Dtype)1.,
+  caffe_gpu_csr_gemm<Dtype>(CblasTrans, CblasNoTrans, this->M_, this->K_, this->N_, (Dtype)1., nzz,
 		  bottom_data, bottom_indices, bottom_ptr, top_diff, (Dtype)0., this->blobs_[0]->mutable_gpu_diff(),CblasColMajor);
   if (this->bias_term_) {
     // Gradient with respect to bias

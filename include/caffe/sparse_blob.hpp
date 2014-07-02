@@ -72,6 +72,24 @@ class SparseBlob : public Blob<Dtype> {
   int* mutable_gpu_indices();
   int* mutable_gpu_ptr();
 
+  void set_cpu_data(Dtype* data);
+
+  virtual const Dtype* cpu_diff() const;
+  virtual const Dtype* gpu_diff() const;
+  virtual Dtype* mutable_cpu_diff();
+  virtual Dtype* mutable_gpu_diff();
+
+  virtual void ShareData(const Blob<Dtype>& other);
+  virtual void ShareDiff(const Blob<Dtype>& other);
+  virtual void CopyFrom(const Blob<Dtype>& source, bool copy_diff = false,
+        bool reshape = false);
+
+  virtual void Update();
+  virtual void FromProto(const BlobProto& proto);
+  virtual void ToProto(BlobProto* proto, bool write_diff = false) const;
+
+
+
  protected:
   shared_ptr<SyncedMemory> indices_;
   shared_ptr<SyncedMemory> ptr_;

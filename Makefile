@@ -113,7 +113,7 @@ CUDA_LIB_DIR := $(CUDA_DIR)/lib64 $(CUDA_DIR)/lib
 INCLUDE_DIRS += $(BUILD_INCLUDE_DIR)
 INCLUDE_DIRS += ./src ./include $(CUDA_INCLUDE_DIR)
 LIBRARY_DIRS += $(CUDA_LIB_DIR)
-LIBRARIES := cudart cublas curand \
+LIBRARIES := cudart cublas cusparse curand \
 	pthread \
 	glog protobuf leveldb snappy \
 	boost_system \
@@ -326,6 +326,7 @@ $(PROTO_BUILD_DIR)/%.pb.o: $(PROTO_BUILD_DIR)/%.pb.cc $(PROTO_GEN_HEADER) \
 $(UTIL_BUILD_DIR)/%.o: src/$(PROJECT)/util/%.cpp $(HXX_SRCS) | $(UTIL_BUILD_DIR)
 	$(CXX) $< $(CXXFLAGS) -c -o $@
 	@ echo
+
 
 $(GTEST_OBJ): $(GTEST_SRC) | $(GTEST_BUILD_DIR)
 	$(CXX) $< $(CXXFLAGS) -c -o $@

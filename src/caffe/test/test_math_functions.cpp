@@ -227,4 +227,191 @@ TYPED_TEST(MathFunctionsTest, TestCopyGPU) {
   }
 }
 
+template<typename Dtype>
+class CsrCpuFunctionsTest : public ::testing::Test {
+ protected:
+	CsrCpuFunctionsTest() {
+		A = (Dtype*) malloc(sizeof(Dtype) * 3);
+		indices = (int*) malloc(sizeof(int) * 3);
+		ptr = (int*) malloc(sizeof(int) * 3);
+		B = (Dtype*) malloc(sizeof(Dtype) * 6);
+	}
+
+  virtual void SetUp() {
+	  A[0] = 1.0;
+	  A[1] = 2.0;
+	  A[2] = 3.0;
+
+	  indices[0] = 0;
+	  indices[1] = 2;
+	  indices[2] = 1;
+
+	  ptr[0] = 0;
+	  ptr[1] = 2;
+	  ptr[2] = 3;
+
+	  B[0] = 4.0;
+	  B[1] = 7.0;
+	  B[2] = 5.0;
+	  B[3] = 8.0;
+	  B[4] = 6.0;
+	  B[5] = 9.0;
+  }
+
+  virtual ~CsrCpuFunctionsTest() {
+	  delete A;
+	  delete indices;
+	  delete ptr;
+	  delete B;
+  }
+  Dtype* A;
+  int* indices;
+  int* ptr;
+  Dtype* B;
+
+};
+
+typedef ::testing::Types<float, double> Dtypes;
+TYPED_TEST_CASE(CsrCpuFunctionsTest, Dtypes);
+
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm1) {
+	TypeParam Ct[] = {(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasNoTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasRowMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)16.0);
+	EXPECT_EQ(C[1], (TypeParam)25.0);
+	EXPECT_EQ(C[2], (TypeParam)15.0);
+	EXPECT_EQ(C[3], (TypeParam)24.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm2) {
+	TypeParam Ct[] = {(TypeParam)1.0,(TypeParam)2.0,(TypeParam)3.0,(TypeParam)4.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasNoTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasRowMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)17.0);
+	EXPECT_EQ(C[1], (TypeParam)27.0);
+	EXPECT_EQ(C[2], (TypeParam)18.0);
+	EXPECT_EQ(C[3], (TypeParam)28.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm3) {
+	TypeParam Ct[] = {(TypeParam)1.0,(TypeParam)2.0,(TypeParam)3.0,(TypeParam)4.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasNoTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)0.0,C, CblasRowMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)16.0);
+	EXPECT_EQ(C[1], (TypeParam)25.0);
+	EXPECT_EQ(C[2], (TypeParam)15.0);
+	EXPECT_EQ(C[3], (TypeParam)24.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm4) {
+	TypeParam Ct[] = {(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasNoTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasColMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)16.0);
+	EXPECT_EQ(C[1], (TypeParam)15.0);
+	EXPECT_EQ(C[2], (TypeParam)25.0);
+	EXPECT_EQ(C[3], (TypeParam)24.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm5) {
+	TypeParam Ct[] = {(TypeParam)1.0,(TypeParam)2.0,(TypeParam)3.0,(TypeParam)4.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasNoTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasColMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)17.0);
+	EXPECT_EQ(C[1], (TypeParam)17.0);
+	EXPECT_EQ(C[2], (TypeParam)28.0);
+	EXPECT_EQ(C[3], (TypeParam)28.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm6) {
+	TypeParam Ct[] = {(TypeParam)1.0,(TypeParam)2.0,(TypeParam)3.0,(TypeParam)4.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasNoTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)0.0,C, CblasColMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)16.0);
+	EXPECT_EQ(C[1], (TypeParam)15.0);
+	EXPECT_EQ(C[2], (TypeParam)25.0);
+	EXPECT_EQ(C[3], (TypeParam)24.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm7) {
+	TypeParam Ct[] = {(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasNoTrans,2,2,3, (TypeParam)2.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasRowMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)32.0);
+	EXPECT_EQ(C[1], (TypeParam)50.0);
+	EXPECT_EQ(C[2], (TypeParam)30.0);
+	EXPECT_EQ(C[3], (TypeParam)48.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm8) {
+	TypeParam Ct[] = {(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasRowMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)14.0);
+	EXPECT_EQ(C[1], (TypeParam)26.0);
+	EXPECT_EQ(C[2], (TypeParam)21.0);
+	EXPECT_EQ(C[3], (TypeParam)18.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm9) {
+	TypeParam Ct[] = {(TypeParam)1.0,(TypeParam)2.0,(TypeParam)3.0,(TypeParam)4.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasRowMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)15.0);
+	EXPECT_EQ(C[1], (TypeParam)28.0);
+	EXPECT_EQ(C[2], (TypeParam)24.0);
+	EXPECT_EQ(C[3], (TypeParam)22.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm10) {
+	TypeParam Ct[] = {(TypeParam)1.0,(TypeParam)2.0,(TypeParam)3.0,(TypeParam)4.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)0.0,C, CblasRowMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)14.0);
+	EXPECT_EQ(C[1], (TypeParam)26.0);
+	EXPECT_EQ(C[2], (TypeParam)21.0);
+	EXPECT_EQ(C[3], (TypeParam)18.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm11) {
+	TypeParam Ct[] = {(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0,(TypeParam)0.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasColMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)14.0);
+	EXPECT_EQ(C[1], (TypeParam)21.0);
+	EXPECT_EQ(C[2], (TypeParam)26.0);
+	EXPECT_EQ(C[3], (TypeParam)18.0);
+}
+
+TYPED_TEST(CsrCpuFunctionsTest, TestCpuCsrGemm12) {
+	TypeParam Ct[] = {(TypeParam)1.0,(TypeParam)2.0,(TypeParam)3.0,(TypeParam)4.0};
+	TypeParam* C = Ct;
+	caffe_cpu_csr_gemm(CblasNoTrans,CblasTrans,2,2,3, (TypeParam)1.0 ,3 , this->A, this->indices, this->ptr,this->B,(TypeParam)1.0,C, CblasColMajor);
+
+	EXPECT_EQ(C[0], (TypeParam)15.0);
+	EXPECT_EQ(C[1], (TypeParam)23.0);
+	EXPECT_EQ(C[2], (TypeParam)29.0);
+	EXPECT_EQ(C[3], (TypeParam)22.0);
+}
+
+
+
+
+
+
+
+
 }  // namespace caffe
