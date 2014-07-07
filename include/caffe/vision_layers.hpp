@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "caffe/blob.hpp"
+#include "caffe/sparse_blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/neuron_layers.hpp"
@@ -157,35 +158,44 @@ class Im2colLayer : public Layer<Dtype> {
 };
 
 /* InnerProductLayer
-*/
+ */
 template <typename Dtype>
 class InnerProductLayer : public Layer<Dtype> {
- public:
-  explicit InnerProductLayer(const LayerParameter& param)
-      : Layer<Dtype>(param) {}
-  virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top);
+public:
+	explicit InnerProductLayer(const LayerParameter& param)
+	: Layer<Dtype>(param) {}
+	virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
 
- protected:
-  virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top);
-  virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top);
-  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
-  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+protected:
+	virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
+	virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
+	virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+			const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+	virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+			const bool propagate_down, vector<Blob<Dtype>*>* bottom);
 
-  int M_;
-  int K_;
-  int N_;
-  bool bias_term_;
-  shared_ptr<SyncedMemory> bias_multiplier_;
+	Dtype Forward_sparse_cpu(const SparseBlob<Dtype>* bottom,
+			vector<Blob<Dtype>*>* top);
+	Dtype Forward_sparse_gpu(const SparseBlob<Dtype>*  bottom,
+			vector<Blob<Dtype>*>* top);
+	void Backward_sparse_cpu(const vector<Blob<Dtype>*>& top,
+			const bool propagate_down, const SparseBlob<Dtype>*  bottom);
+	void Backward_sparse_gpu(const vector<Blob<Dtype>*>& top,
+			const bool propagate_down, const SparseBlob<Dtype>*  bottom);
+
+	int M_;
+	int K_;
+	int N_;
+	bool bias_term_;
+	shared_ptr<SyncedMemory> bias_multiplier_;
 };
 
 
 /* SparseInnerProductLayer
-*/
+
 template <typename Dtype>
 class SparseInnerProductLayer : public InnerProductLayer<Dtype> {
  public:
@@ -203,6 +213,7 @@ class SparseInnerProductLayer : public InnerProductLayer<Dtype> {
       const bool propagate_down, vector<Blob<Dtype>*>* bottom);
 
 };
+*/
 
 
 // Forward declare PoolingLayer and SplitLayer for use in LRNLayer.

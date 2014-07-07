@@ -15,10 +15,9 @@
 namespace caffe {
 
 template <typename Dtype>
-Dtype SparseInnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+Dtype InnerProductLayer<Dtype>::Forward_sparse_gpu(const SparseBlob<Dtype>* bottomSparseBlob,
     vector<Blob<Dtype>*>* top) {
 
-  SparseBlob<Dtype>* bottomSparseBlob = dynamic_cast<SparseBlob<Dtype>*>(bottom[0]); //it has to be a sparse blob for this to work
   const Dtype* bottom_data = bottomSparseBlob->gpu_data();
   const int*  bottom_indices = bottomSparseBlob->gpu_indices();
   const int* bottom_ptr = bottomSparseBlob->gpu_ptr();
@@ -38,12 +37,11 @@ Dtype SparseInnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bo
 }
 
 template <typename Dtype>
-void SparseInnerProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
+void InnerProductLayer<Dtype>::Backward_sparse_gpu(const vector<Blob<Dtype>*>& top,
     const bool propagate_down,
-    vector<Blob<Dtype>*>* bottom) {
+    const SparseBlob<Dtype>* bottomSparseBlob) {
   const Dtype* top_diff = top[0]->gpu_diff();
 
-  SparseBlob<Dtype>* bottomSparseBlob = dynamic_cast<SparseBlob<Dtype>*>((*bottom)[0]); //it has to be a sparse blob for this to work
     const Dtype* bottom_data = bottomSparseBlob->gpu_data();
     const int*  bottom_indices = bottomSparseBlob->gpu_indices();
     const int* bottom_ptr = bottomSparseBlob->gpu_ptr();
@@ -62,6 +60,6 @@ void SparseInnerProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
   }
 }
 
-INSTANTIATE_CLASS(SparseInnerProductLayer);
+INSTANTIATE_CLASS(InnerProductLayer);
 
 }  // namespace caffe

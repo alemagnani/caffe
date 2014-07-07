@@ -14,10 +14,8 @@ namespace caffe {
 
 
 template <typename Dtype>
-Dtype SparseInnerProductLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+Dtype InnerProductLayer<Dtype>::Forward_sparse_cpu(const SparseBlob<Dtype>* bottomSparseBlob,
     vector<Blob<Dtype>*>* top) {
-
-  const SparseBlob<Dtype>* bottomSparseBlob = dynamic_cast<SparseBlob<Dtype>*>(bottom[0]); //it has to be a sparse blob for this to work
 
   const Dtype* bottom_data = bottomSparseBlob->cpu_data();
   const int*  bottom_indices = bottomSparseBlob->cpu_indices();
@@ -27,7 +25,7 @@ Dtype SparseInnerProductLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bo
   Dtype* top_data = (*top)[0]->mutable_cpu_data();
   const Dtype* weight = this->blobs_[0]->cpu_data();
 
-  caffe_cpu_csr_gemm<Dtype>(CblasNoTrans, CblasNoTrans, this->M_, this->N_, this->K_, (Dtype)1., nzz,
+  caffe_cpu_csr_gemm<Dtype>(CblasNoTrans, CblasTrans, this->M_, this->N_, this->K_, (Dtype)1., nzz,
       bottom_data, bottom_indices, bottom_ptr, weight, (Dtype)0., top_data, CblasRowMajor);
 
   if (this->bias_term_) {
@@ -39,12 +37,10 @@ Dtype SparseInnerProductLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bo
 }
 
 template <typename Dtype>
-void SparseInnerProductLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+void InnerProductLayer<Dtype>::Backward_sparse_cpu(const vector<Blob<Dtype>*>& top,
     const bool propagate_down,
-    vector<Blob<Dtype>*>* bottom) {
+    const SparseBlob<Dtype>*  bottomSparseBlob) {
   const Dtype* top_diff = top[0]->cpu_diff();
-
-  const SparseBlob<Dtype>* bottomSparseBlob = dynamic_cast<SparseBlob<Dtype>*>((*bottom)[0]); //it has to be a sparse blob for this to work
 
   const Dtype* bottom_data = bottomSparseBlob->cpu_data();
   const int*  bottom_indices = bottomSparseBlob->cpu_indices();
@@ -66,6 +62,6 @@ void SparseInnerProductLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
   }
 }
 
-INSTANTIATE_CLASS(SparseInnerProductLayer);
+INSTANTIATE_CLASS(InnerProductLayer);
 
 }  // namespace caffe

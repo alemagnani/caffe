@@ -13,40 +13,53 @@ namespace caffe {
 
 template <typename Dtype>
 void SparseBlob<Dtype>::Reshape(const int num, const int channels, const int nzz) {
-  CHECK_GE(num, 0);
-  CHECK_GE(channels, 0);
-  CHECK_GE(nzz, 0);
+	CHECK_GE(num, 0);
+	CHECK_GE(channels, 0);
+	CHECK_GE(nzz, 0);
 
-  this->num_ = num;
-  this->channels_ = channels;
-  this->height_ = 1;
-  this->width_ = 1;
-  this->count_ = this->num_ * this->channels_;
-  if (this->count_) {
-	this->data_.reset(new SyncedMemory(nzz_ * sizeof(Dtype)));
-    indices_.reset(new SyncedMemory(nzz_ * sizeof(int)));
-    ptr_.reset(new SyncedMemory((this->num_ + 1) * sizeof(int)));
-  } else {
-	this->data_.reset(reinterpret_cast<SyncedMemory*>(NULL));
-    indices_.reset(reinterpret_cast<SyncedMemory*>(NULL));
-    ptr_.reset(reinterpret_cast<SyncedMemory*>(NULL));
-  }
+	const int previous_num = this->num_;
+	this->num_ = num;
+	this->channels_ = channels;
+	this->height_ = 1;
+	this->width_ = 1;
+	this->count_ = this->num_ * this->channels_;
+	if (this->count_) {
+		if (nzz != nzz_){
+			nzz_ = nzz;
+			this->data_.reset(new SyncedMemory(nzz_ * sizeof(Dtype)));
+			indices_.reset(new SyncedMemory(nzz_ * sizeof(int)));
+		}
+		if ( previous_num != num){
+			LOG(INFO) << "reshaping ptr\n";
+			ptr_.reset(new SyncedMemory((this->num_ + 1) * sizeof(int)));
+		}
+	} else {
+		this->data_.reset(reinterpret_cast<SyncedMemory*>(NULL));
+		indices_.reset(reinterpret_cast<SyncedMemory*>(NULL));
+		ptr_.reset(reinterpret_cast<SyncedMemory*>(NULL));
+	}
 }
 
 template <typename Dtype>
 void SparseBlob<Dtype>::Reshape(const int num, const int channels, const int height,
-   const int width){
-	LOG(FATAL) << "reshape without nzz is not supported";
+		const int width){
+	CHECK_EQ(height, 1);
+	CHECK_EQ(width, 1);
+	Reshape(num, channels, 0);
 }
 
 template <typename Dtype>
-void SparseBlob<Dtype>::ReshapeLike(const SparseBlob<Dtype>& other) {
-  Reshape(other.num(), other.channels(), other.height(), other.width());
+void SparseBlob<Dtype>::ReshapeLike(const Blob<Dtype>& other) {
+	if (const SparseBlob<Dtype>* sparseBlob = dynamic_cast<SparseBlob<Dtype>*>(  (Blob<Dtype>*)(&other))){
+		 Reshape(sparseBlob->num(), sparseBlob->channels(), sparseBlob->nzz());
+	}else{
+		Reshape(other.num(), other.channels(), other.height(), other.width());
+	}
 }
 
 template <typename Dtype>
 SparseBlob<Dtype>::SparseBlob(const int num, const int channels, const int nzz) {
-  Reshape(num, channels, nzz);
+	Reshape(num, channels, nzz);
 }
 
 template <typename Dtype>
@@ -63,13 +76,13 @@ const Dtype* SparseBlob<Dtype>::cpu_diff() const {
 template <typename Dtype>
 const Dtype* SparseBlob<Dtype>::gpu_diff() const {
 	LOG(FATAL) << "gpu_diff is not supported";
-		return NULL;
+	return NULL;
 }
 
 template <typename Dtype>
 Dtype* SparseBlob<Dtype>::mutable_cpu_diff() {
 	LOG(FATAL) << "cpu_mutable_diff is not supported";
-			return NULL;
+	return NULL;
 }
 
 template <typename Dtype>
@@ -106,26 +119,26 @@ const int* SparseBlob<Dtype>::gpu_ptr() const {
 
 template <typename Dtype>
 int* SparseBlob<Dtype>::mutable_cpu_indices() {
-  CHECK(indices_);
-  return reinterpret_cast<int*>(indices_->mutable_cpu_data());
+	CHECK(indices_);
+	return reinterpret_cast<int*>(indices_->mutable_cpu_data());
 }
 
 template <typename Dtype>
 int* SparseBlob<Dtype>::mutable_cpu_ptr() {
-  CHECK(ptr_);
-  return reinterpret_cast<int*>(ptr_->mutable_cpu_data());
+	CHECK(ptr_);
+	return reinterpret_cast<int*>(ptr_->mutable_cpu_data());
 }
 
 template <typename Dtype>
 int* SparseBlob<Dtype>::mutable_gpu_indices() {
-  CHECK(indices_);
-  return reinterpret_cast<int*>(indices_->mutable_gpu_data());
+	CHECK(indices_);
+	return reinterpret_cast<int*>(indices_->mutable_gpu_data());
 }
 
 template <typename Dtype>
 int* SparseBlob<Dtype>::mutable_gpu_ptr() {
-  CHECK(ptr_);
-  return reinterpret_cast<int*>(ptr_->mutable_gpu_data());
+	CHECK(ptr_);
+	return reinterpret_cast<int*>(ptr_->mutable_gpu_data());
 }
 
 template <typename Dtype>

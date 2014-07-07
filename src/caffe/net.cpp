@@ -109,7 +109,7 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
       } else {
         // Normal output.
         LOG(INFO) << layer_param.name() << " -> " << blob_name;
-        shared_ptr<Blob<Dtype> > blob_pointer(new Blob<Dtype>());
+        shared_ptr<Blob<Dtype> > blob_pointer(GetTopBlob<Dtype>(layer_param, j));
         blobs_.push_back(blob_pointer);
         blob_names_.push_back(blob_name);
         blob_need_backward_.push_back(param.force_backward());

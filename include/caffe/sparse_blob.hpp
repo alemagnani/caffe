@@ -19,9 +19,10 @@ class SparseBlob : public Blob<Dtype> {
 
   virtual void Reshape(const int num, const int channels, const int height,
      const int width);
+
   void Reshape(const int num, const int channels, const int nzz);
 
-  void ReshapeLike(const SparseBlob& other);
+  virtual void ReshapeLike(const Blob<Dtype>& other);
 
   virtual inline int height() const { return 1; }
   virtual inline int width() const { return 1; }
