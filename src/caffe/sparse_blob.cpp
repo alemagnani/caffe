@@ -68,6 +68,40 @@ void SparseBlob<Dtype>::set_cpu_data(Dtype* data) {
 }
 
 template <typename Dtype>
+void SparseBlob<Dtype>::set_gpu_data(Dtype* data) {
+	LOG(FATAL) << "set_gpu_data is not supported";
+}
+
+template <typename Dtype>
+void SparseBlob<Dtype>::set_cpu_data( Dtype* data, int* indices, int* ptr, int nzz, int total_size){
+	CHECK(data);
+	CHECK(indices);
+	CHECK(ptr);
+	nzz_ = nzz;
+	if(total_size == -1){
+		total_size = nzz;
+	}
+	CHECK_GE(total_size, nzz);
+	this->data_->set_cpu_data((void*)data, total_size * sizeof(Dtype));
+	indices_->set_cpu_data((void*)indices, total_size * sizeof(int));
+	ptr_->set_cpu_data((void*)ptr, this->num_ * sizeof(int));
+}
+template <typename Dtype>
+void SparseBlob<Dtype>::set_gpu_data( Dtype* data, int* indices, int* ptr, int nzz, int total_size){
+	CHECK(data);
+	CHECK(indices);
+	CHECK(ptr);
+	nzz_ = nzz;
+		if(total_size == -1){
+			total_size = nzz;
+		}
+		CHECK_GE(total_size, nzz);
+		this->data_->set_gpu_data((void*)data, total_size * sizeof(Dtype));
+		indices_->set_gpu_data((void*)indices, total_size * sizeof(int));
+		ptr_->set_gpu_data((void*)ptr, this->num_ * sizeof(int));
+}
+
+template <typename Dtype>
 const Dtype* SparseBlob<Dtype>::cpu_diff() const {
 	LOG(FATAL) << "cpu_diff is not supported";
 	return NULL;

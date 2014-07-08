@@ -65,6 +65,7 @@ class Blob {
 
   virtual const Dtype* cpu_data() const;
   virtual void set_cpu_data(Dtype* data);
+  virtual void set_gpu_data(Dtype* data);
   virtual const Dtype* gpu_data() const;
   virtual const Dtype* cpu_diff() const;
   virtual const Dtype* gpu_diff() const;

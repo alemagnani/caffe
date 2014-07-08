@@ -206,6 +206,8 @@ void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
 		const float alpha, int nzz, const float* A, const int* indices, const int* ptr, const float* B, const float beta,
 		float* C, const CBLAS_ORDER orderC) {
 
+	//std::cout << "M: " << M << " N: " << N << " K: " << K << " NZZ: " << nzz <<"\n"  ;
+
 	int ldb = (TransB == CblasNoTrans) ? N : K;
 	cusparseOperation_t cuTransA =
 			(TransA == CblasNoTrans) ? CUSPARSE_OPERATION_NON_TRANSPOSE : CUSPARSE_OPERATION_TRANSPOSE;
@@ -257,6 +259,7 @@ void caffe_gpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
 		const double alpha, int nzz, const double* A, const int* indices, const int* ptr, const double* B, const double beta,
 		double* C, const CBLAS_ORDER orderC) {
 
+	//std::cout << "M: " << M << "N: " << N << "K: " << K << "NZZ: " << nzz  ;
 	int ldb = (TransB == CblasNoTrans) ? N : K;
 	cusparseOperation_t cuTransA =
 			(TransA == CblasNoTrans) ? CUSPARSE_OPERATION_NON_TRANSPOSE : CUSPARSE_OPERATION_TRANSPOSE;

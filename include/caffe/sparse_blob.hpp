@@ -73,7 +73,13 @@ class SparseBlob : public Blob<Dtype> {
   int* mutable_gpu_indices();
   int* mutable_gpu_ptr();
 
-  void set_cpu_data(Dtype* data);
+  virtual void set_cpu_data(Dtype* data);
+  virtual void set_gpu_data(Dtype* data);
+
+  //the num and channels are assumed to be the same but nzz might change that is why is an argument
+  //also the actual size of data and indices might exceed nzz to allow for easy slicing. If total_size it not pass is assumed to be equal to nzz
+  void set_cpu_data( Dtype* data,  int* indices,  int* ptr, int nzz, int total_size=-1);
+  void set_gpu_data( Dtype* data,  int* indices, int* ptr, int nzz, int total_size=-1);
 
   virtual const Dtype* cpu_diff() const;
   virtual const Dtype* gpu_diff() const;

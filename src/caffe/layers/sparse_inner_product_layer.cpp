@@ -48,7 +48,7 @@ void InnerProductLayer<Dtype>::Backward_sparse_cpu(const vector<Blob<Dtype>*>& t
   const int nzz = bottomSparseBlob->nzz();
 
   // Gradient with respect to weight
-  caffe_cpu_csr_gemm<Dtype>(CblasTrans, CblasNoTrans, this->M_, this->K_, this->N_, (Dtype)1., nzz,
+  caffe_cpu_csr_gemm<Dtype>(CblasTrans, CblasNoTrans, this->K_, this->N_, this->M_, (Dtype)1., nzz,
 		  bottom_data, bottom_indices, bottom_ptr, top_diff, (Dtype)0., this->blobs_[0]->mutable_cpu_diff(),CblasColMajor);
 
   if (this->bias_term_) {
@@ -58,7 +58,8 @@ void InnerProductLayer<Dtype>::Backward_sparse_cpu(const vector<Blob<Dtype>*>& t
         this->blobs_[1]->mutable_cpu_diff());
   }
   if (propagate_down) {
-	  LOG(FATAL) << "propagate down not supported for sparse inner product";
+	  //there is a bug in the code because this is called no matter what!
+	  //LOG(FATAL) << "propagate down not supported for sparse inner product";
   }
 }
 

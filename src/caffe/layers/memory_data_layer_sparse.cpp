@@ -18,10 +18,6 @@ void MemoryDataLayerSparse<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
 	CHECK_GT(batch_size_ , 0) << "batch_size must be specified and positive in _sparse_param";
 	(*top)[0]->Reshape(batch_size_, datum_size_, 1, 1 );
 	(*top)[1]->Reshape(batch_size_, 1, 1, 1);
-	data_ = NULL;
-	indices_ = NULL;
-	ptr_ = NULL;
-	labels_ = NULL;
 }
 
 template <typename Dtype>
@@ -32,59 +28,85 @@ void MemoryDataLayerSparse<Dtype>::Reset(Dtype* data, int* indices, int* ptr,  D
 	CHECK(ptr);
 	CHECK_EQ(cols, datum_size_);
 	CHECK(rows > batch_size_) << "rows must be more than the batch size";
-	data_ = data;
-	labels_ = labels;
-	indices_ = indices;
-	ptr_ = ptr;
+	const int nzz = ptr[rows] - ptr[0];
+
+	blob_.reset(new SparseBlob<Dtype>());
+	blob_->Reshape(rows, cols, nzz);
+	blob_->set_cpu_data(data, indices, ptr, nzz);
+
+	labels_.reset(new SyncedMemory(rows * sizeof(Dtype)));
+	labels_->set_cpu_data(labels);
+
 	rows_ = rows;
 	pos_ = 0;
-
 }
+
+template <typename Dtype>
+ Dtype* MemoryDataLayerSparse<Dtype>::cpu_labels() const{
+	CHECK(labels_);
+	return ( Dtype*)labels_->cpu_data();
+}
+
+template <typename Dtype>
+Dtype* MemoryDataLayerSparse<Dtype>::gpu_labels() const{
+	CHECK(labels_);
+	return ( Dtype*)labels_->gpu_data();
+}
+
 
 template <typename Dtype>
 Dtype MemoryDataLayerSparse<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 		vector<Blob<Dtype>*>* top) {
-	CHECK(data_) << "MemoryDataLayerSparse needs to be initialized by calling Reset";
+	CHECK(blob_->cpu_data()) << "MemoryDataLayerSparse needs to be initialized by calling Reset";
 
+	const int* ptr = blob_->cpu_ptr();
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( (*top)[0] )){
-		//LOG(INFO) << "writing to a sparse blob";
-		const int begin = ptr_[pos_];
-		const int end = ptr_[pos_+batch_size_];
-		const int nzz = end - begin;
-		sparseBlob->Reshape(batch_size_, datum_size_, nzz);
-
-		Dtype* data = sparseBlob->mutable_cpu_data();
-		int*  indices = sparseBlob->mutable_cpu_indices();
-		int*  ptr = sparseBlob->mutable_cpu_ptr();
-		for (int i=0; i < sparseBlob->nzz(); i++){
-			data[i] = this->data_[i+begin];
-			indices[i] = indices_[i+begin];
-		}
-		for(int i=0; i <= batch_size_; i++){
-			ptr[i] = ptr_[i+pos_] - begin;
-		}
+		const int nzz = ptr[pos_+batch_size_] - ptr[pos_];
+		sparseBlob->set_cpu_data( const_cast<Dtype*>(blob_->cpu_data()),const_cast<int*>(blob_->cpu_indices()), const_cast<int*>(ptr)+pos_,nzz,blob_->nzz());  //this is a hack we should handle it differently
 	}else{
 		Dtype* toWrite =  (*top)[0]->mutable_cpu_data();
 		memset(toWrite, 0, sizeof(Dtype) * batch_size_ * datum_size_);
 
 		for (int r=0; r < batch_size_; r++){
-			const int begin = ptr_[pos_+r];
-			const int end = ptr_[pos_+1+r];
+			const int begin = ptr[pos_+r];
+			const int end = ptr[pos_+1+r];
 			for (int p=begin; p < end; p++){
-				toWrite[r * datum_size_ + indices_[p]] = data_[p];
+				toWrite[r * datum_size_ + blob_->cpu_indices()[p]] = blob_->cpu_data()[p];
 			}
 		}
 	}
-	(*top)[1]->set_cpu_data(labels_ + pos_);
+	(*top)[1]->set_cpu_data(cpu_labels()+pos_);
 
 	pos_ = (pos_ + batch_size_);
-	//LOG(INFO) << "pos" << pos_;
 	if (pos_ >= (rows_ - batch_size_)){ //notice that few data points will be lost if the rows are not nultiple of the batch size
-		//LOG(INFO) << "pos: " << pos_ << ", rows: " << rows_;
 		pos_ = 0;
 	}
 	return Dtype(0.);
 }
+
+template <typename Dtype>
+Dtype MemoryDataLayerSparse<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+		vector<Blob<Dtype>*>* top) {
+	CHECK(blob_->cpu_data()) << "MemoryDataLayerSparse needs to be initialized by calling Reset";
+
+	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( (*top)[0] )){
+		const int* ptr = blob_->cpu_ptr(); //this is correct CPU because it's easier to read out of it to compute nzz
+		const int nzz = ptr[pos_+batch_size_] - ptr[pos_];
+		sparseBlob->set_gpu_data( const_cast<Dtype*>(blob_->gpu_data()),const_cast<int*>(blob_->gpu_indices()), const_cast<int*>(blob_->gpu_ptr())+pos_,nzz,blob_->nzz());
+
+	}else{
+		LOG(FATAL) << "Forward_gpu to dense operation not supported\n";
+	}
+	(*top)[1]->set_gpu_data(gpu_labels()+pos_);
+
+	pos_ = (pos_ + batch_size_);
+	if (pos_ >= (rows_ - batch_size_)){ //notice that few data points will be lost if the rows are not nultiple of the batch size
+		pos_ = 0;
+	}
+	return Dtype(0.);
+}
+
+
 
 INSTANTIATE_CLASS(MemoryDataLayerSparse);
 
