@@ -357,6 +357,9 @@ class CaffeSGDSolver {
     test_net_.reset(new CaffeNet(solver_->test_net()));
   }
 
+  void set_mode_cpu() { Caffe::set_mode(Caffe::CPU); }
+  void set_mode_gpu() { Caffe::set_mode(Caffe::GPU); }
+
   shared_ptr<CaffeNet> net() { return net_; }
   shared_ptr<CaffeNet> test_net() { return test_net_; }
   void Solve() { return solver_->Solve(); }
@@ -414,6 +417,8 @@ BOOST_PYTHON_MODULE(_caffe) {
       .add_property("net", &CaffeSGDSolver::net)
       .add_property("test_net", &CaffeSGDSolver::test_net)
       .def("solve",        &CaffeSGDSolver::Solve)
+      .def("set_mode_cpu",      &CaffeSGDSolver::set_mode_cpu)
+      .def("set_mode_gpu",      &CaffeSGDSolver::set_mode_gpu)
       .def("solve",        &CaffeSGDSolver::SolveResume);
 
   boost::python::class_<vector<CaffeBlob> >("BlobVec")

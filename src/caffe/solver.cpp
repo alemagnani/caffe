@@ -237,7 +237,8 @@ void SGDSolver<Dtype>::ComputeUpdateValue() {
   // get the learning rate
   Dtype rate = GetLearningRate();
   if (this->param_.display() && this->iter_ % this->param_.display() == 0) {
-    LOG(INFO) << "Iteration " << this->iter_ << ", lr = " << rate;
+
+    LOG(INFO) << "Iteration " << this->iter_ << ", lr = " << rate << ", mode = " << ((Caffe::mode() == Caffe::GPU) ? "GPU" : "CPU");
   }
   Dtype momentum = this->param_.momentum();
   Dtype weight_decay = this->param_.weight_decay();
