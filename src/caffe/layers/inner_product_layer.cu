@@ -16,7 +16,7 @@ namespace caffe {
 template <typename Dtype>
 Dtype InnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 		vector<Blob<Dtype>*>* top) {
-
+	//LOG(INFO) << "forward GPU in sparse inner product\n";
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( bottom[0] )){
 		return Forward_sparse_gpu(sparseBlob, top);
 	}

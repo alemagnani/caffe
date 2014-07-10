@@ -47,6 +47,12 @@ void caffe_gpu_csr_gemm(const CBLAS_TRANSPOSE TransA,
     const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
     const Dtype alpha, int nzz, const Dtype* A, const int* indices,const int* ptr, const Dtype* B, const Dtype beta,
     Dtype* C, const CBLAS_ORDER orderC);
+
+template <typename Dtype>
+void caffe_gpu_csr_gemm_2(const CBLAS_TRANSPOSE TransA,
+    const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+    const Dtype alpha, int nzz, const Dtype* A, const int* indices,const int* ptr, const Dtype* B, const Dtype beta,
+    Dtype* C, const CBLAS_ORDER orderC);
 /////////////////////////////////////
 
 

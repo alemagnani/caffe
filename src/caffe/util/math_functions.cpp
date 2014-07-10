@@ -201,7 +201,7 @@ template void caffe_cpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
 
 
 template <>
-void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
+void caffe_gpu_csr_gemm_2<float>(const CBLAS_TRANSPOSE TransA,
 		const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
 		const float alpha, int nzz, const float* A, const int* indices, const int* ptr, const float* B, const float beta,
 		float* C, const CBLAS_ORDER orderC) {
@@ -254,7 +254,7 @@ void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
 }
 
 template <>
-void caffe_gpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
+void caffe_gpu_csr_gemm_2<double>(const CBLAS_TRANSPOSE TransA,
 		const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
 		const double alpha, int nzz, const double* A, const int* indices, const int* ptr, const double* B, const double beta,
 		double* C, const CBLAS_ORDER orderC) {

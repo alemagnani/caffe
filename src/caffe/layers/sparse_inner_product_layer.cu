@@ -17,12 +17,12 @@ namespace caffe {
 template <typename Dtype>
 Dtype InnerProductLayer<Dtype>::Forward_sparse_gpu(const SparseBlob<Dtype>* bottomSparseBlob,
 		vector<Blob<Dtype>*>* top) {
-
+	//LOG(INFO) << "getting data from blob\n";
 	const Dtype* bottom_data = bottomSparseBlob->gpu_data();
 	const int*  bottom_indices = bottomSparseBlob->gpu_indices();
 	const int* bottom_ptr = bottomSparseBlob->gpu_ptr();
 	const int nzz = bottomSparseBlob->nzz();
-
+	//LOG(INFO) << "done getting data\n";
 	Dtype* top_data = (*top)[0]->mutable_gpu_data();
 	const Dtype* weight = this->blobs_[0]->gpu_data();
 	caffe_gpu_csr_gemm<Dtype>(CblasNoTrans, CblasTrans, this->M_, this->N_, this->K_, (Dtype)1., nzz,

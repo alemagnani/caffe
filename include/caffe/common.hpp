@@ -10,6 +10,7 @@
 #include <curand.h>
 #include <driver_types.h>  // cuda driver types
 #include <glog/logging.h>
+#include <algorithm>
 
 // Disable the copy and assignment operator for a class.
 #define DISABLE_COPY_AND_ASSIGN(classname) \
@@ -176,6 +177,17 @@ const char* curandGetErrorString(curandStatus_t error);
 inline int CAFFE_GET_BLOCKS(const int N) {
   return (N + CAFFE_CUDA_NUM_THREADS - 1) / CAFFE_CUDA_NUM_THREADS;
 }
+
+inline int CAFFE_GET_2D_THREADS(const int n){
+	return 32;
+}
+
+inline int CAFFE_GET_2D_BLOCKS(const int n){
+	return (n + CAFFE_GET_2D_THREADS(n) - 1) / CAFFE_GET_2D_THREADS(n);
+}
+
+
+
 
 
 }  // namespace caffe

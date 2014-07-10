@@ -11,6 +11,7 @@ namespace caffe {
 template <typename Dtype>
 void MemoryDataLayerSparse<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
 		vector<Blob<Dtype>*>* top) {
+	//LOG(INFO) << "setting up the memory data layer sparse";
 	CHECK_EQ(bottom.size(), 0) << "Memory Data Sparse Layer takes no blobs as input.";
 	CHECK_EQ(top->size(), 2) << "Memory Data Layer Sparse takes two blobs as output.";
 	batch_size_ = this->layer_param_.memory_data_sparse_param().batch_size();
@@ -88,10 +89,12 @@ template <typename Dtype>
 Dtype MemoryDataLayerSparse<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 		vector<Blob<Dtype>*>* top) {
 	CHECK(blob_->cpu_data()) << "MemoryDataLayerSparse needs to be initialized by calling Reset";
+	//LOG(INFO) << "forward GPU on memory data layer sparse\n";
 
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( (*top)[0] )){
 		const int* ptr = blob_->cpu_ptr(); //this is correct CPU because it's easier to read out of it to compute nzz
 		const int nzz = ptr[pos_+batch_size_] - ptr[pos_];
+		//LOG(INFO) << "forward GPU on memory data layer sparse sparse nzz: " << nzz  << " total nzz: " << blob_->nzz() << "\n";
 		sparseBlob->set_gpu_data( const_cast<Dtype*>(blob_->gpu_data()),const_cast<int*>(blob_->gpu_indices()), const_cast<int*>(blob_->gpu_ptr())+pos_,nzz,blob_->nzz());
 
 	}else{

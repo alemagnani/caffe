@@ -36,10 +36,10 @@ class SyncedMemory {
  public:
   SyncedMemory()
       : cpu_ptr_(NULL), gpu_ptr_(NULL), size_(0), head_(UNINITIALIZED),
-        own_cpu_data_(false) {}
+        own_cpu_data_(false), own_gpu_data_(false) {}
   explicit SyncedMemory(size_t size)
       : cpu_ptr_(NULL), gpu_ptr_(NULL), size_(size), head_(UNINITIALIZED),
-        own_cpu_data_(false) {}
+        own_cpu_data_(false), own_gpu_data_(false) {}
   ~SyncedMemory();
   const void* cpu_data();
 

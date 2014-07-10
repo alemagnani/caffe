@@ -13,6 +13,7 @@ namespace caffe {
 
 template <typename Dtype>
 void SparseBlob<Dtype>::Reshape(const int num, const int channels, const int nzz) {
+	//LOG(INFO) << "reshaping sparse blob num: " << num << " channels: " << channels << " nzz: "<< nzz << "\n";
 	CHECK_GE(num, 0);
 	CHECK_GE(channels, 0);
 	CHECK_GE(nzz, 0);
@@ -30,7 +31,7 @@ void SparseBlob<Dtype>::Reshape(const int num, const int channels, const int nzz
 			indices_.reset(new SyncedMemory(nzz_ * sizeof(int)));
 		}
 		if ( previous_num != num){
-			LOG(INFO) << "reshaping ptr\n";
+			//LOG(INFO) << "reshaping ptr\n";
 			ptr_.reset(new SyncedMemory((this->num_ + 1) * sizeof(int)));
 		}
 	} else {
@@ -45,7 +46,7 @@ void SparseBlob<Dtype>::Reshape(const int num, const int channels, const int hei
 		const int width){
 	CHECK_EQ(height, 1);
 	CHECK_EQ(width, 1);
-	Reshape(num, channels, 0);
+	Reshape(num, channels, 1);//1 to make sure something is created
 }
 
 template <typename Dtype>
@@ -84,21 +85,23 @@ void SparseBlob<Dtype>::set_cpu_data( Dtype* data, int* indices, int* ptr, int n
 	CHECK_GE(total_size, nzz);
 	this->data_->set_cpu_data((void*)data, total_size * sizeof(Dtype));
 	indices_->set_cpu_data((void*)indices, total_size * sizeof(int));
-	ptr_->set_cpu_data((void*)ptr, this->num_ * sizeof(int));
+	ptr_->set_cpu_data((void*)ptr, (this->num_+1) * sizeof(int));
 }
 template <typename Dtype>
 void SparseBlob<Dtype>::set_gpu_data( Dtype* data, int* indices, int* ptr, int nzz, int total_size){
 	CHECK(data);
 	CHECK(indices);
 	CHECK(ptr);
+	//LOG(INFO) << "setting gpu data in sparse blob\n";
 	nzz_ = nzz;
 		if(total_size == -1){
 			total_size = nzz;
 		}
 		CHECK_GE(total_size, nzz);
-		this->data_->set_gpu_data((void*)data, total_size * sizeof(Dtype));
-		indices_->set_gpu_data((void*)indices, total_size * sizeof(int));
-		ptr_->set_gpu_data((void*)ptr, this->num_ * sizeof(int));
+		//LOG(INFO) << "about to set data \n";
+		this->data_->set_gpu_data(data, total_size * sizeof(Dtype));
+		indices_->set_gpu_data(indices, total_size * sizeof(int));
+		ptr_->set_gpu_data(ptr, (this->num_+1) * sizeof(int));
 }
 
 template <typename Dtype>

@@ -10,10 +10,12 @@
 namespace caffe {
 
 SyncedMemory::~SyncedMemory() {
+	//LOG(INFO) << "killing sync memory";
 	clear_data();
 }
 
 inline void SyncedMemory::to_cpu() {
+	//LOG(INFO) << "to cpu " << size_ << " \n";
 	switch (head_) {
 	case UNINITIALIZED:
 		CaffeMallocHost(&cpu_ptr_, size_);
@@ -36,15 +38,19 @@ inline void SyncedMemory::to_cpu() {
 }
 
 inline void SyncedMemory::to_gpu() {
+	//LOG(INFO) << "to gpu \n";
 	switch (head_) {
 	case UNINITIALIZED:
+		//LOG(INFO) << "uninizialized " << size_ << "\n";
 		CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
 		own_gpu_data_ = true;
 		CUDA_CHECK(cudaMemset(gpu_ptr_, 0, size_));
 		head_ = HEAD_AT_GPU;
 		break;
 	case HEAD_AT_CPU:
+		//LOG(INFO) << "head at cpu " << size_ << "\n";
 		if (gpu_ptr_ == NULL) {
+			//LOG(INFO) << "allocating gpu memory\n";
 			CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
 			own_gpu_data_ = true;
 		}
@@ -59,10 +65,12 @@ inline void SyncedMemory::to_gpu() {
 
 void SyncedMemory::clear_data(){
 	if (cpu_ptr_ && own_cpu_data_) {
+		//LOG(INFO) << "freeing cpu data size: " << size_ << "\n";
 		CaffeFreeHost(cpu_ptr_);
 		cpu_ptr_ = NULL;
 	}
 	if (gpu_ptr_ && own_gpu_data_) {
+		//LOG(INFO) << "freeing gpu data size: " << size_ << "\n";
 		CUDA_CHECK(cudaFree(gpu_ptr_));
 		gpu_ptr_ = NULL;
 	}
@@ -76,6 +84,7 @@ const void* SyncedMemory::cpu_data() {
 
 void SyncedMemory::set_cpu_data(void* data, int size) {
 	CHECK(data);
+	//LOG(INFO) << "set cpu data in synch memory for size: " << size << "rpevious size: " << size_ << "\n";
 	if (size != -1 && size_ != size){
 		clear_data();
 		size_ = size;
@@ -91,8 +100,11 @@ void SyncedMemory::set_cpu_data(void* data, int size) {
 
 void SyncedMemory::set_gpu_data(void* data, int size) {
 	CHECK(data);
+	//LOG(INFO) << "set gpu data in synch memory for size: " << size << "rpevious size: " << size_ << "\n";
 	if (size != -1 && size_ != size){
+		//LOG(INFO) << "clearing data\n";
 		clear_data();
+		//LOG(INFO) << "data cleared\n";
 		size_ = size;
 	}
 	if (gpu_ptr_ && own_gpu_data_) {
@@ -102,6 +114,7 @@ void SyncedMemory::set_gpu_data(void* data, int size) {
 	gpu_ptr_ = data;
 	head_ = HEAD_AT_GPU;
 	own_gpu_data_ = false;
+	//LOG(INFO) << "done setting data in synce mem\n";
 }
 
 
