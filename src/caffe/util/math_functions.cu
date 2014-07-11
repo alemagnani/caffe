@@ -295,12 +295,11 @@ __device__  void caffe_gpu_csr_rank1_update_kernel_core(const int M, const int N
 	const int begin = ptr[0];
 	const int end = ptr[1];
 	for( int pos = blockIdx.x*blockDim.x + begin + threadIdx.x; pos < end; pos += blockDim.x * gridDim.x ){
-		const int rowC = indices[pos];
 		const Dtype valA = A[pos] * alpha;
-		const int offset_part = rowC * ldc1;
+		const int offset_part = indices[pos] * ldc1;
 		for( int colC = blockIdx.y*blockDim.y + threadIdx.y;  colC < N; colC += blockDim.y * gridDim.y ){
 			const int C_offset  = offset_part  + colC * ldc2;
-			C[C_offset] += B[colC * ldb] * valA;
+			C[C_offset] = C[C_offset] + B[colC * ldb] * valA;
 		}
 	}
 }
@@ -346,8 +345,9 @@ void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
 		if (beta != 1.0){
 			CUBLAS_CHECK(cublasSscal(Caffe::cublas_handle() , M * N, &beta, C, 1));
 		}
-		dim3 grids(CAFFE_GET_2D_BLOCKS(nzz/K+1),CAFFE_GET_2D_BLOCKS(N));
-		dim3 threads(CAFFE_GET_2D_THREADS(nzz/K+1), CAFFE_GET_2D_THREADS(N));
+		const int average_nzz_per_row = nzz/K+1;
+		dim3 grids((average_nzz_per_row+64-1)/64,N);
+		dim3 threads(64, 1);
 		caffe_gpu_csr_rank1_update_kernel_multi<float><<<grids,threads>>>(TransB, M,  N, K, alpha, A, indices, ptr , B, 1,C,orderC);
 	}
 }
@@ -366,8 +366,9 @@ void caffe_gpu_csr_gemm<double>(const CBLAS_TRANSPOSE TransA,
 		if (beta != 1.0){
 			CUBLAS_CHECK(cublasDscal(Caffe::cublas_handle() , M * N, &beta, C, 1));
 		}
-		dim3 grids(CAFFE_GET_2D_BLOCKS(nzz/K+1),CAFFE_GET_2D_BLOCKS(N));
-		dim3 threads(CAFFE_GET_2D_THREADS(nzz/K+1), CAFFE_GET_2D_THREADS(N));
+		const int average_nzz_per_row = nzz/K+1;
+		dim3 grids((average_nzz_per_row+64-1)/64,N);
+		dim3 threads(64, 1);
 		caffe_gpu_csr_rank1_update_kernel_multi<double><<<grids,threads>>>(TransB, M,  N, K, alpha, A, indices, ptr , B, 1,C,orderC);
 	}
 }
