@@ -11,7 +11,10 @@ namespace caffe {
 template <typename Dtype>
 class Solver {
  public:
+
+  explicit Solver(const SolverParameter& param, const NetParameter& netParam, const NetParameter* testNetParam);
   explicit Solver(const SolverParameter& param);
+
   explicit Solver(const string& param_file);
   void Init(const SolverParameter& param);
   // The main entry of the solver function. In default, iter will be zero. Pass
@@ -21,6 +24,12 @@ class Solver {
   virtual ~Solver() {}
   inline shared_ptr<Net<Dtype> > net() { return net_; }
   inline shared_ptr<Net<Dtype> > test_net() { return test_net_; }
+  // The Solver::Snapshot function implements the basic snapshotting utility
+   // that stores the learned net. You should implement the SnapshotSolverState()
+   // function that produces a SolverState protocol buffer that needs to be
+   // written to disk together with the learned net.
+  void Snapshot();
+  void Snapshot(const string& filename);
 
  protected:
   // PreSolve is run before any solving iteration starts, allowing one to
@@ -28,11 +37,8 @@ class Solver {
   virtual void PreSolve() {}
   // Get the update value for the current iteration.
   virtual void ComputeUpdateValue() = 0;
-  // The Solver::Snapshot function implements the basic snapshotting utility
-  // that stores the learned net. You should implement the SnapshotSolverState()
-  // function that produces a SolverState protocol buffer that needs to be
-  // written to disk together with the learned net.
-  void Snapshot();
+
+
   // The test routine
   void Test();
   virtual void SnapshotSolverState(SolverState* state) = 0;
@@ -56,6 +62,8 @@ class SGDSolver : public Solver<Dtype> {
  public:
   explicit SGDSolver(const SolverParameter& param)
       : Solver<Dtype>(param) {}
+  explicit SGDSolver(const SolverParameter& param, const NetParameter& netParam, const NetParameter* testNetParam)
+        : Solver<Dtype>(param, netParam, testNetParam) {}
   explicit SGDSolver(const string& param_file)
       : Solver<Dtype>(param_file) {}
 

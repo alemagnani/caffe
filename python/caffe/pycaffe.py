@@ -418,6 +418,7 @@ def _Net_batch(self, blobs):
         yield padded_batch
 
 
+
 # Attach methods to Net.
 Net.blobs = _Net_blobs
 Net.params = _Net_params

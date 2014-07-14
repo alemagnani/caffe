@@ -81,6 +81,7 @@ Dtype MemoryDataLayerSparse<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bott
 	pos_ = (pos_ + batch_size_);
 	if (pos_ >= (rows_ - batch_size_)){ //notice that few data points will be lost if the rows are not nultiple of the batch size
 		pos_ = 0;
+		LOG(INFO) << "done with batch";
 	}
 	return Dtype(0.);
 }
