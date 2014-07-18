@@ -2,7 +2,7 @@
 # Contributions simplifying and improving our build system are welcome!
 
 # CUDA directory contains bin/ and lib/ directories that we need.
-CUDA_DIR := /usr/local/cuda
+#CUDA_DIR := /usr/local/cuda
 
 # CUDA architecture setting: going with all of them.
 CUDA_ARCH := -gencode arch=compute_20,code=sm_20 \
@@ -28,12 +28,8 @@ BLAS := atlas
 
 # NOTE: this is required only if you will compile the python interface.
 # We need to be able to find Python.h and numpy/arrayobject.h.
-PYTHON_INCLUDE := /usr/local/include/python2.7 \
+#PYTHON_INCLUDE := /usr/local/include/python2.7 \
 		/usr/local/lib/python2.7/dist-packages/numpy/core/include
-# Anaconda Python distribution is quite popular. Include path:
-# PYTHON_INCLUDE := $(HOME)/anaconda/include \
-		# $(HOME)/anaconda/include/python2.7 \
-		# $(HOME)/anaconda/lib/python2.7/site-packages/numpy/core/include
 
 # We need to be able to find libpythonX.X.so or .dylib.
 PYTHON_LIB := /usr/local/lib

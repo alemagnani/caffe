@@ -81,7 +81,6 @@ Dtype MemoryDataLayerSparse<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bott
 	pos_ = (pos_ + batch_size_);
 	if (pos_ >= (rows_ - batch_size_)){ //notice that few data points will be lost if the rows are not nultiple of the batch size
 		pos_ = 0;
-		LOG(INFO) << "done with batch";
 	}
 	return Dtype(0.);
 }
@@ -90,12 +89,9 @@ template <typename Dtype>
 Dtype MemoryDataLayerSparse<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 		vector<Blob<Dtype>*>* top) {
 	CHECK(blob_->cpu_data()) << "MemoryDataLayerSparse needs to be initialized by calling Reset";
-	//LOG(INFO) << "forward GPU on memory data layer sparse\n";
-
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( (*top)[0] )){
 		const int* ptr = blob_->cpu_ptr(); //this is correct CPU because it's easier to read out of it to compute nzz
 		const int nzz = ptr[pos_+batch_size_] - ptr[pos_];
-		//LOG(INFO) << "forward GPU on memory data layer sparse sparse nzz: " << nzz  << " total nzz: " << blob_->nzz() << "\n";
 		sparseBlob->set_gpu_data( const_cast<Dtype*>(blob_->gpu_data()),const_cast<int*>(blob_->gpu_indices()), const_cast<int*>(blob_->gpu_ptr())+pos_,nzz,blob_->nzz());
 
 	}else{
