@@ -8,6 +8,7 @@ from itertools import izip_longest
 import numpy as np
 from scipy.sparse import csr_matrix
 
+
 from ._caffe import Net, SGDSolver
 import caffe.io
 

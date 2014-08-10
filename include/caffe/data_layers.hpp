@@ -126,6 +126,7 @@ protected:
 	Caffe::Phase phase_;
 };
 
+
 ////////////////////// data layer with sparse input /////////
 template <typename Dtype>
 void* DataLayerSparseInputPrefetch(void* layer_pointer);
@@ -158,9 +159,10 @@ protected:
 	shared_ptr<leveldb::DB> db_;
 	shared_ptr<leveldb::Iterator> iter_;
 	int datum_size_;
-	int datum_nn_;
+
 	pthread_t thread_;
-	shared_ptr<Blob<Dtype> > prefetch_data_;
+	shared_ptr<SparseBlob<Dtype> > prefetch_data_;
+	shared_ptr<SparseBlob<Dtype> > prefetch_data_copy;
 	shared_ptr<Blob<Dtype> > prefetch_label_;
 
 	bool output_labels_;

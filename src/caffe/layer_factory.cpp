@@ -106,6 +106,12 @@ Blob<Dtype>* GetTopBlob(const LayerParameter& param, int pos) {
 		}else{
 			return new Blob<Dtype>();
 		}
+	case LayerParameter_LayerType_DATA_SPARSE_INPUT:
+		if (pos == 0){
+				return new SparseBlob<Dtype>();
+			}else{
+				return new Blob<Dtype>();
+		}
 	default:
 		return new Blob<Dtype>();
 	}
