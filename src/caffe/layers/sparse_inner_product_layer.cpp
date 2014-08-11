@@ -30,7 +30,7 @@ Dtype InnerProductLayer<Dtype>::Forward_sparse_cpu(const SparseBlob<Dtype>* bott
 
   if (this->bias_term_) {
     caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, this->M_, this->N_, 1, (Dtype)1.,
-        reinterpret_cast<const Dtype*>(this->bias_multiplier_->cpu_data()),
+        this->bias_multiplier_.cpu_data(),
         this->blobs_[1]->cpu_data(), (Dtype)1., top_data);
   }
   return Dtype(0);
@@ -38,28 +38,30 @@ Dtype InnerProductLayer<Dtype>::Forward_sparse_cpu(const SparseBlob<Dtype>* bott
 
 template <typename Dtype>
 void InnerProductLayer<Dtype>::Backward_sparse_cpu(const vector<Blob<Dtype>*>& top,
-    const bool propagate_down,
+		const bool propagate_down,
     const SparseBlob<Dtype>*  bottomSparseBlob) {
-  const Dtype* top_diff = top[0]->cpu_diff();
 
-  const Dtype* bottom_data = bottomSparseBlob->cpu_data();
-  const int*  bottom_indices = bottomSparseBlob->cpu_indices();
-  const int* bottom_ptr = bottomSparseBlob->cpu_ptr();
-  const int nzz = bottomSparseBlob->nzz();
-
+  if (this->param_propagate_down_[0]){
   // Gradient with respect to weight
-  caffe_cpu_csr_gemm<Dtype>(CblasTrans, CblasNoTrans, this->K_, this->N_, this->M_, (Dtype)1., nzz,
+	  const Dtype* top_diff = top[0]->cpu_diff();
+	  const Dtype* bottom_data = bottomSparseBlob->cpu_data();
+	  const int*  bottom_indices = bottomSparseBlob->cpu_indices();
+	  const int* bottom_ptr = bottomSparseBlob->cpu_ptr();
+	  const int nzz = bottomSparseBlob->nzz();
+	  caffe_cpu_csr_gemm<Dtype>(CblasTrans, CblasNoTrans, this->K_, this->N_, this->M_, (Dtype)1., nzz,
 		  bottom_data, bottom_indices, bottom_ptr, top_diff, (Dtype)0., this->blobs_[0]->mutable_cpu_diff(),CblasColMajor);
+  }
 
-  if (this->bias_term_) {
+  if (this->bias_term_ && this->param_propagate_down_[1]) {
     // Gradient with respect to bias
+	 const Dtype* top_diff = top[0]->cpu_diff();
     caffe_cpu_gemv<Dtype>(CblasTrans, this->M_, this->N_, (Dtype)1., top_diff,
-        reinterpret_cast<const Dtype*>(this->bias_multiplier_->cpu_data()), (Dtype)0.,
+        this->bias_multiplier_.cpu_data(), (Dtype)0.,
         this->blobs_[1]->mutable_cpu_diff());
   }
   if (propagate_down) {
 	  //there is a bug in the code because this is called no matter what!
-	  //LOG(FATAL) << "propagate down not supported for sparse inner product";
+	  LOG(WARN) << "propagate down not supported for sparse inner product";
   }
 }
 

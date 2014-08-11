@@ -1,4 +1,3 @@
-// Copyright 2014 BVLC and contributors.
 // pycaffe provides a wrapper of the caffe::Net class as well as some
 // caffe::Caffe functions so that one could easily call it from Python.
 // Note that for Python, we will simply use float as the data type.
@@ -28,6 +27,7 @@
 
 
 using namespace caffe;  // NOLINT(build/namespaces)
+using boost::python::dict;
 using boost::python::extract;
 using boost::python::len;
 using boost::python::list;
@@ -195,13 +195,13 @@ struct CaffeNet {
 		}
 	}
 
-	void Forward() {
-		net_->ForwardPrefilled();
-	}
+	  void Forward(int start, int end) {
+	    net_->ForwardFromTo(start, end);
+	  }
 
-	void Backward() {
-		net_->Backward();
-	}
+	  void Backward(int start, int end) {
+	    net_->BackwardFromTo(start, end);
+	  }
 
 	void set_input_arrays(object data_obj, object labels_obj) {
 		// check that this network has an input MemoryDataLayer
@@ -232,8 +232,6 @@ struct CaffeNet {
 		// hold references
 		input_data_ = data_obj;
 		input_labels_ = labels_obj;
-		//    input_indices_ = NULL;
-		//    input_ptr_ = NULL;
 
 		md_layer->Reset(static_cast<float*>(PyArray_DATA(data_arr)),
 				static_cast<float*>(PyArray_DATA(labels_arr)),
@@ -304,6 +302,12 @@ struct CaffeNet {
 				rows, cols);
 	}
 
+	  // save the network weights to binary proto for net surgeries.
+	  void save(string filename) {
+	    NetParameter net_param;
+	    net_->ToProto(&net_param, false);
+	    WriteProtoToBinaryFile(net_param, filename.c_str());
+	  }
 
 
 
@@ -350,11 +354,17 @@ struct CaffeNet {
 
 	// The pointer to the internal caffe::Net instant.
 	shared_ptr<Net<float> > net_;
+	// Input preprocessing configuration attributes.
+	dict mean_;
+	dict input_scale_;
+	dict raw_scale_;
+	dict channel_swap_;
 	// if taking input from an ndarray, we need to hold references
 	object input_data_;
 	object input_labels_;
 	object input_indices_;
 	object input_ptr_;
+
 };
 
 class CaffeSGDSolver {
@@ -444,7 +454,9 @@ BOOST_PYTHON_MODULE(_caffe) {
     		  .add_property("inputs",   &CaffeNet::inputs)
     		  .add_property("outputs",  &CaffeNet::outputs)
     		  .def("_set_input_sparse_arrays", &CaffeNet::set_input_sparse_arrays)
-    		  .def("_set_input_arrays", &CaffeNet::set_input_arrays);
+    		  .def("_set_input_arrays", &CaffeNet::set_input_arrays)
+    		  .def("save",                  &CaffeNet::save);
+
 
 	boost::python::class_<CaffeBlob, CaffeBlobWrap>(
 			"Blob", boost::python::no_init)
@@ -456,6 +468,7 @@ BOOST_PYTHON_MODULE(_caffe) {
     		  .add_property("count",    &CaffeBlob::count)
     		  .add_property("data",     &CaffeBlobWrap::get_data)
     		  .add_property("diff",     &CaffeBlobWrap::get_diff);
+
 
 	boost::python::class_<CaffeLayer>(
 			"Layer", boost::python::no_init)
