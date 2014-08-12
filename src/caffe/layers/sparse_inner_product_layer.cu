@@ -60,7 +60,7 @@ void InnerProductLayer<Dtype>::Backward_sparse_gpu(const vector<Blob<Dtype>*>& t
 	}
 	if (propagate_down) {
 		//there is a bug in the code because this is called no matter what!
-		LOG(WARN) << "propagate down is not supported by sparse inner product";
+		//LOG(FATAL) << "propagate down is not supported by sparse inner product";
 	}
 }
 

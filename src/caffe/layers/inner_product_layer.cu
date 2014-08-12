@@ -16,20 +16,6 @@ Dtype InnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( bottom[0] )){
 		return Forward_sparse_gpu(sparseBlob, top);
 	}
-/*
-	const Dtype* bottom_data = bottom[0]->gpu_data();
-	Dtype* top_data = (*top)[0]->mutable_gpu_data();
-	const Dtype* weight = this->blobs_[0]->gpu_data();
-	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, M_, N_, K_, (Dtype)1.,
-			bottom_data, weight, (Dtype)0., top_data);
-	if (bias_term_) {
-		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, M_, N_, 1, (Dtype)1.,
-				reinterpret_cast<const Dtype*>(bias_multiplier_->gpu_data()),
-				this->blobs_[1]->gpu_data(), (Dtype)1., top_data);
-	}
-	return Dtype(0);
-*/
-
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = (*top)[0]->mutable_gpu_data();
   const Dtype* weight = this->blobs_[0]->gpu_data();
@@ -46,11 +32,11 @@ Dtype InnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
 template <typename Dtype>
 void InnerProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
-		const bool propagate_down,
+		const vector<bool>& propagate_down,
 		vector<Blob<Dtype>*>* bottom) {
 
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( (*bottom)[0] )){
-		return Backward_sparse_gpu( top, this->param_propagate_down_[0],this->param_propagate_down_[1],propagate_down[0], sparseBlob);
+		return Backward_sparse_gpu( top,propagate_down[0], sparseBlob);
 	}
 
   if (this->param_propagate_down_[0]) {

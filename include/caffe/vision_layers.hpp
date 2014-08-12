@@ -146,12 +146,20 @@ protected:
 	virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
 			const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
+	Dtype Forward_sparse_cpu(const SparseBlob<Dtype>* bottom,
+			vector<Blob<Dtype>*>* top);
+	Dtype Forward_sparse_gpu(const SparseBlob<Dtype>*  bottom,
+			vector<Blob<Dtype>*>* top);
+	void Backward_sparse_cpu(const vector<Blob<Dtype>*>& top,
+			const bool propagate_down, const SparseBlob<Dtype>*  bottom);
+	void Backward_sparse_gpu(const vector<Blob<Dtype>*>& top,
+			const bool propagate_down, const SparseBlob<Dtype>*  bottom);
 
 	int M_;
 	int K_;
 	int N_;
 	bool bias_term_;
-	shared_ptr<SyncedMemory> bias_multiplier_;
+	Blob<Dtype> bias_multiplier_;
 };
 
 
