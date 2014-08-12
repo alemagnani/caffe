@@ -13,7 +13,7 @@ namespace caffe {
 template <typename Dtype>
 class SparseBlob : public Blob<Dtype> {
  public:
-  SparseBlob() : Blob<Dtype>(), nzz_(0), indices_(), ptr_() {}
+  SparseBlob() : Blob<Dtype>(), indices_(), ptr_(), nzz_(0) {}
 
   explicit SparseBlob(const int num, const int channels, const int nzz);
 
