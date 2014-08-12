@@ -103,9 +103,9 @@ protected:
 	virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 			vector<Blob<Dtype>*>* top);
 	virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-			const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+			const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return;}
 	virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-			const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+			const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return;}
 
 	virtual void CreatePrefetchThread();
 	virtual void JoinPrefetchThread();
@@ -325,14 +325,14 @@ public:
 	 Dtype* gpu_labels() const;
 
 protected:
-	virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-			vector<Blob<Dtype>*>* top);
-	virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-			vector<Blob<Dtype>*>* top);
-	virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-			const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
-	virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-			const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+		virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+				vector<Blob<Dtype>*>* top);
+		virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+				vector<Blob<Dtype>*>* top);
+		virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+				const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return; }
+		virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+				const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return; }
 
 	shared_ptr<SparseBlob<Dtype> > blob_;
 	shared_ptr<SyncedMemory> labels_;

@@ -67,8 +67,8 @@ class SGDSolver : public Solver<Dtype> {
  public:
   explicit SGDSolver(const SolverParameter& param)
       : Solver<Dtype>(param) {}
-  explicit SGDSolver(const SolverParameter& param, const NetParameter& netParam, const NetParameter* testNetParam)
-        : Solver<Dtype>(param, netParam, testNetParam) {}
+  explicit SGDSolver(const SolverParameter& param, const NetParameter& netParam)
+        : Solver<Dtype>(param, netParam) {}
   explicit SGDSolver(const string& param_file)
       : Solver<Dtype>(param_file) {}
 

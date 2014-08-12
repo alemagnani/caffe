@@ -3,14 +3,15 @@
 
 #include <string>
 
-#include "caffe/layer.hpp"
 
+#include "caffe/common.hpp"
 #include "caffe/blob.hpp"
 #include "caffe/sparse_blob.hpp"
-#include "caffe/vision_layers.hpp"
-
+#include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/vision_layers.hpp"
+
+
 
 namespace caffe {
 
@@ -100,9 +101,9 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
 }
 
 template <typename Dtype>
-Blob<Dtype>* GetTopBlob(const LayerParameter& param, int pos) {
-	const string& name = param.name();
-	const LayerParameter_LayerType& type = param.type();
+Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos) {
+	const string& name = param->name();
+	const LayerParameter_LayerType& type = param->type();
 	switch (type) {
 	case LayerParameter_LayerType_MEMORY_DATA_SPARSE:
 		if (pos == 0){
@@ -126,8 +127,8 @@ Blob<Dtype>* GetTopBlob(const LayerParameter& param, int pos) {
 template Layer<float>* GetLayer(const LayerParameter& param);
 template Layer<double>* GetLayer(const LayerParameter& param);
 
-template Blob<float>* GetTopBlob(const LayerParameter& param, int pos);
-template Blob<double>* GetTopBlob(const LayerParameter& param, int pos);
+template Blob<float>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos);
+template Blob<double>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos);
 
 }  // namespace caffe
 
