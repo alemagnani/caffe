@@ -388,13 +388,13 @@ public:
 		NetParameter netParam;
 		google::protobuf::TextFormat::ParseFromString(net_serialized, &netParam);
 
-		solver_.reset(new SGDSolver<float>(param, netParam, NULL ));
+		solver_.reset(new SGDSolver<float>(param, netParam));
 		// we need to explicitly store the net wrapper, rather than constructing
 		// it on the fly, so that it can hold references to Python objects
 		net_.reset(new CaffeNet(solver_->net()));
 		test_net_.reset(reinterpret_cast<CaffeNet*>(NULL));
 	}
-
+/*
 	explicit CaffeSGDSolver(const string& param_serialized, const string& net_serialized, const string& test_net_serialized) {
 		// as in CaffeNet, (as a convenience, not a guarantee), create a Python
 		// exception if param_file can't be opened
@@ -411,6 +411,7 @@ public:
 		net_.reset(new CaffeNet(solver_->net()));
 		test_net_.reset(new CaffeNet(solver_->test_net()));
 	}
+	*/
 
 	void snapshot(const string& filename){
 		solver_->Snapshot(filename);

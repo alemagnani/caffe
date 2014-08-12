@@ -12,7 +12,7 @@ template <typename Dtype>
 class Solver {
  public:
 
-  explicit Solver(const SolverParameter& param, const NetParameter& netParam, const NetParameter* testNetParam);
+  explicit Solver(const SolverParameter& param, const NetParameter& netParam);
   explicit Solver(const SolverParameter& param);
 
   explicit Solver(const string& param_file);
