@@ -195,6 +195,11 @@ Dtype DataLayerSparseInput<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& botto
 	return Dtype(0.);
 }
 
+#ifdef CPU_ONLY
+STUB_GPU_FORWARD(DataLayerSparseInput, Forward);
+#endif
+
+
 INSTANTIATE_CLASS(DataLayerSparseInput);
 
 }  // namespace caffe
