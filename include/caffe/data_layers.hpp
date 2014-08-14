@@ -116,8 +116,9 @@ protected:
 
 	pthread_t thread_;
 	shared_ptr<SparseBlob<Dtype> > prefetch_data_;
-	shared_ptr<SparseBlob<Dtype> > prefetch_data_copy;
+	shared_ptr<SparseBlob<Dtype> > prefetch_data_copy_;
 	shared_ptr<Blob<Dtype> > prefetch_label_;
+	shared_ptr<Blob<Dtype> > prefetch_label_copy_;
 
 	bool output_labels_;
 	Caffe::Phase phase_;

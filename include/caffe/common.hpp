@@ -99,6 +99,8 @@ using std::set;
 using std::string;
 using std::vector;
 
+
+
 // A global initialization function that you should call in your main function.
 // Currently it initializes google flags and google logging.
 void GlobalInit(int* pargc, char*** pargv);

@@ -12,9 +12,7 @@ template <typename Dtype>
 class Solver {
  public:
 
-  explicit Solver(const SolverParameter& param, const NetParameter& netParam);
   explicit Solver(const SolverParameter& param);
-
   explicit Solver(const string& param_file);
   void Init(const SolverParameter& param);
   void InitTrainNet();
@@ -28,6 +26,7 @@ class Solver {
   inline const vector<shared_ptr<Net<Dtype> > >& test_nets() {
     return test_nets_;
   }
+  void Snapshot(const string& filename);
 
 
  protected:
@@ -41,7 +40,6 @@ class Solver {
   // function that produces a SolverState protocol buffer that needs to be
   // written to disk together with the learned net.
   void Snapshot();
-  void Snapshot(const string& filename);
 
   // The test routine
   void TestAll();
@@ -67,8 +65,6 @@ class SGDSolver : public Solver<Dtype> {
  public:
   explicit SGDSolver(const SolverParameter& param)
       : Solver<Dtype>(param) {}
-  explicit SGDSolver(const SolverParameter& param, const NetParameter& netParam)
-        : Solver<Dtype>(param, netParam) {}
   explicit SGDSolver(const string& param_file)
       : Solver<Dtype>(param_file) {}
 

@@ -28,27 +28,6 @@ Solver<Dtype>::Solver(const string& param_file)
 }
 
 template <typename Dtype>
-Solver<Dtype>::Solver(const SolverParameter& param, const NetParameter& netParam) {
-	LOG(INFO) << "Initializing solver from parameters: " << std::endl
-	            << param.DebugString();
-	 param_ = param;
-	  if (param_.solver_mode() == SolverParameter_SolverMode_GPU &&
-	      param_.has_device_id()) {
-	    Caffe::SetDevice(param_.device_id());
-	  }
-	  Caffe::set_mode(Caffe::Brew(param_.solver_mode()));
-	  if (param_.random_seed() >= 0) {
-	    Caffe::set_random_seed(param_.random_seed());
-	  }
-	// Scaffolding code
-	LOG(INFO) << "Creating training net.";
-	net_.reset(new Net<Dtype>(netParam));
-	InitTestNets();
-	LOG(INFO) << "Solver scaffolding done.";
-}
-
-
-template <typename Dtype>
 void Solver<Dtype>::Init(const SolverParameter& param) {
   LOG(INFO) << "Initializing solver from parameters: " << std::endl
             << param.DebugString();

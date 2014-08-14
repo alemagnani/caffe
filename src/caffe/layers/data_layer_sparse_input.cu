@@ -20,25 +20,27 @@ Dtype DataLayerSparseInput<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& botto
       vector<Blob<Dtype>*>* top) {
 	// First, join the thread
 	JoinPrefetchThread();
-	shared_ptr<SparseBlob<Dtype> >  tmp = prefetch_data_;
-	prefetch_data_ = prefetch_data_copy;
-	prefetch_data_copy = tmp;
+	prefetch_data_.swap(prefetch_data_copy_);
+	prefetch_label_.swap(prefetch_label_copy_);
+
 	// Start a new prefetch thread
 	CreatePrefetchThread();
 
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( (*top)[0] )){
-		sparseBlob->set_gpu_data( const_cast<Dtype*>(prefetch_data_copy->gpu_data()),const_cast<int*>(prefetch_data_copy->gpu_indices()), const_cast<int*>(prefetch_data_copy->gpu_ptr()),prefetch_data_copy->nzz(),prefetch_data_copy->nzz());
+		sparseBlob->set_gpu_data( const_cast<Dtype*>(prefetch_data_copy_->gpu_data()),const_cast<int*>(prefetch_data_copy_->gpu_indices()), const_cast<int*>(prefetch_data_copy_->gpu_ptr()),prefetch_data_copy_->nzz(),prefetch_data_copy_->nzz());
 	}else{
 		LOG(FATAL) << "The top blob in the data layer sparse is not sparse\n";
 	}
+
 	if (output_labels_) {
-	    CUDA_CHECK(cudaMemcpy((*top)[1]->mutable_gpu_data(),
-	        prefetch_label_->cpu_data(), sizeof(Dtype) * prefetch_label_->count(),
-	        cudaMemcpyHostToDevice));
-	  }
+	    caffe_copy(prefetch_label_copy_->count(), prefetch_label_copy_->cpu_data(),
+	        (*top)[1]->mutable_gpu_data());
+	 }
 	return Dtype(0.);
 }
 
 INSTANTIATE_CLASS(DataLayerSparseInput);
+
+
 
 }  // namespace caffe

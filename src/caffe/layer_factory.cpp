@@ -102,7 +102,8 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
 
 template <typename Dtype>
 Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos) {
-	const string& name = param->name();
+
+	//const string& name = param->name();
 	const LayerParameter_LayerType& type = param->type();
 	switch (type) {
 	case LayerParameter_LayerType_MEMORY_DATA_SPARSE:

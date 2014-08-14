@@ -364,64 +364,32 @@ struct CaffeNet {
 	object input_labels_;
 	object input_indices_;
 	object input_ptr_;
-
 };
 
 class CaffeSGDSolver {
 public:
-	explicit CaffeSGDSolver(const string& param_file) {
-		// as in CaffeNet, (as a convenience, not a guarantee), create a Python
-		// exception if param_file can't be opened
-		CheckFile(param_file);
-		solver_.reset(new SGDSolver<float>(param_file));
+	explicit CaffeSGDSolver(const string& param_file_or_param_txt_serialized, bool isFile=true) {
+		if(isFile){
+			// as in CaffeNet, (as a convenience, not a guarantee), create a Python
+			// exception if param_file can't be opened
+			CheckFile(param_file_or_param_txt_serialized);
+			solver_.reset(new SGDSolver<float>(param_file_or_param_txt_serialized));
+		}else{
+			SolverParameter param;
+			google::protobuf::TextFormat::ParseFromString(param_file_or_param_txt_serialized, &param);
+			solver_.reset(new SGDSolver<float>(param));
+		}
 		// we need to explicitly store the net wrapper, rather than constructing
 		// it on the fly, so that it can hold references to Python objects
 		net_.reset(new CaffeNet(solver_->net()));
-		test_net_.reset(new CaffeNet(solver_->test_net()));
 	}
-
-	explicit CaffeSGDSolver(const string& param_serialized, const string& net_serialized) {
-		// as in CaffeNet, (as a convenience, not a guarantee), create a Python
-		// exception if param_file can't be opened
-		SolverParameter param;
-		google::protobuf::TextFormat::ParseFromString(param_serialized, &param);
-		NetParameter netParam;
-		google::protobuf::TextFormat::ParseFromString(net_serialized, &netParam);
-
-		solver_.reset(new SGDSolver<float>(param, netParam));
-		// we need to explicitly store the net wrapper, rather than constructing
-		// it on the fly, so that it can hold references to Python objects
-		net_.reset(new CaffeNet(solver_->net()));
-		test_net_.reset(reinterpret_cast<CaffeNet*>(NULL));
-	}
-/*
-	explicit CaffeSGDSolver(const string& param_serialized, const string& net_serialized, const string& test_net_serialized) {
-		// as in CaffeNet, (as a convenience, not a guarantee), create a Python
-		// exception if param_file can't be opened
-		SolverParameter param;
-		google::protobuf::TextFormat::ParseFromString(param_serialized, &param);
-		NetParameter netParam;
-		google::protobuf::TextFormat::ParseFromString(net_serialized, &netParam);
-		NetParameter testNetParam;
-		google::protobuf::TextFormat::ParseFromString(test_net_serialized, &testNetParam);
-
-		solver_.reset(new SGDSolver<float>(param, netParam, &testNetParam ));
-		// we need to explicitly store the net wrapper, rather than constructing
-		// it on the fly, so that it can hold references to Python objects
-		net_.reset(new CaffeNet(solver_->net()));
-		test_net_.reset(new CaffeNet(solver_->test_net()));
-	}
-	*/
 
 	void snapshot(const string& filename){
 		solver_->Snapshot(filename);
 	}
 
-	void set_mode_cpu() { Caffe::set_mode(Caffe::CPU); }
-	void set_mode_gpu() { Caffe::set_mode(Caffe::GPU); }
-
 	shared_ptr<CaffeNet> net() { return net_; }
-	shared_ptr<CaffeNet> test_net() { return test_net_; }
+
 	void Solve() { return solver_->Solve(); }
 	void SolveResume(const string& resume_file) {
 		CheckFile(resume_file);
@@ -430,7 +398,6 @@ public:
 
 protected:
 	shared_ptr<CaffeNet> net_;
-	shared_ptr<CaffeNet> test_net_;
 	shared_ptr<SGDSolver<float> > solver_;
 };
 
@@ -477,15 +444,11 @@ BOOST_PYTHON_MODULE(_caffe) {
     		  .add_property("blobs", &CaffeLayer::blobs);
 
 	boost::python::class_<CaffeSGDSolver, boost::noncopyable>(
-			"SGDSolver", boost::python::init<string>())
-				.def(boost::python::init<string,string>())
-				.def(boost::python::init<string,string,string>())
+			"SGDSolver", boost::python::init<string,bool>())
+				.def(boost::python::init<string>())
     		  .add_property("net", &CaffeSGDSolver::net)
-    		  .add_property("test_net", &CaffeSGDSolver::test_net)
     		  .def("solve",        &CaffeSGDSolver::Solve)
-    		  .def("set_mode_cpu",      &CaffeSGDSolver::set_mode_cpu)
     		  .def("snapshot",      &CaffeSGDSolver::snapshot)
-    		  .def("set_mode_gpu",      &CaffeSGDSolver::set_mode_gpu)
     		  .def("solve",        &CaffeSGDSolver::SolveResume);
 
 	boost::python::class_<vector<CaffeBlob> >("BlobVec")

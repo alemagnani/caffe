@@ -232,7 +232,7 @@ template <typename Dtype>
 Layer<Dtype>* GetLayer(const LayerParameter& param);
 
 template <typename Dtype>
-Blob<Dtype>* GetTopBlob(const LayerParameter& param, int pos);
+Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos);
 
 }  // namespace caffe
 

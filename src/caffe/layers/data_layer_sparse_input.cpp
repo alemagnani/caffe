@@ -47,7 +47,7 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
 		layer->iter_->Next();
 		if (!layer->iter_->Valid()) {
 			// We have reached the end. Restart from the first.
-			DLOG(INFO) << "Restarting data prefetching from start.";
+			//LOG(INFO) << "Restarting data prefetching from start.";
 			layer->iter_->SeekToFirst();
 		}
 	}
@@ -129,7 +129,7 @@ void DataLayerSparseInput<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
 		LOG(FATAL) << "The top blob in the data layer sparse is not sparse\n";
 	}
 	prefetch_data_.reset(new SparseBlob<Dtype>(this->layer_param_.data_sparse_input_param().batch_size(),datum.size(),1));
-	prefetch_data_copy.reset(new SparseBlob<Dtype>(this->layer_param_.data_sparse_input_param().batch_size(),datum.size(),1));
+	prefetch_data_copy_.reset(new SparseBlob<Dtype>(this->layer_param_.data_sparse_input_param().batch_size(),datum.size(),1));
 
 	LOG(INFO) << "output data size: " << (*top)[0]->num() << ","
 			<< (*top)[0]->channels() << "," << (*top)[0]->height() << ","
@@ -139,6 +139,8 @@ void DataLayerSparseInput<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
 		(*top)[1]->Reshape(this->layer_param_.data_sparse_input_param().batch_size(), 1, 1, 1);
 		prefetch_label_.reset(
 				new Blob<Dtype>(this->layer_param_.data_sparse_input_param().batch_size(), 1, 1, 1));
+		prefetch_label_copy_.reset(
+						new Blob<Dtype>(this->layer_param_.data_sparse_input_param().batch_size(), 1, 1, 1));
 	}
 	// datum size
 	datum_size_ = datum.size();
@@ -174,19 +176,20 @@ Dtype DataLayerSparseInput<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& botto
 		vector<Blob<Dtype>*>* top) {
 	// First, join the thread
 	JoinPrefetchThread();
-	shared_ptr<SparseBlob<Dtype> >  tmp = prefetch_data_;
-	prefetch_data_ = prefetch_data_copy;
-	prefetch_data_copy = tmp;
-	// Start a new prefetch thread
+	//we swap the prefetch data
+	prefetch_data_.swap(prefetch_data_copy_);
+	prefetch_label_.swap(prefetch_label_copy_);
+
+	// Start a new prefetch thread ahead of any memory transfer
 	CreatePrefetchThread();
 
 	if ( SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>( (*top)[0] )){
-		sparseBlob->set_cpu_data( const_cast<Dtype*>(prefetch_data_copy->cpu_data()),const_cast<int*>(prefetch_data_copy->cpu_indices()), const_cast<int*>(prefetch_data_copy->cpu_ptr()),prefetch_data_copy->nzz(),prefetch_data_copy->nzz());
+		sparseBlob->set_cpu_data( const_cast<Dtype*>(prefetch_data_copy_->cpu_data()),const_cast<int*>(prefetch_data_copy_->cpu_indices()), const_cast<int*>(prefetch_data_copy_->cpu_ptr()),prefetch_data_copy_->nzz(),prefetch_data_copy_->nzz());
 	}else{
 		LOG(FATAL) << "The top blob in the data layer sparse is not sparse\n";
 	}
 	if (output_labels_) {
-		caffe_copy(prefetch_label_->count(), prefetch_label_->cpu_data(),
+		caffe_copy(prefetch_label_copy_->count(), prefetch_label_copy_->cpu_data(),
 				(*top)[1]->mutable_cpu_data());
 	}
 	return Dtype(0.);
