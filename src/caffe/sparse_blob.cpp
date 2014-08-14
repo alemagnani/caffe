@@ -1,7 +1,5 @@
 // Copyright 2014 BVLC and contributors.
 
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
 
 #include "caffe/sparse_blob.hpp"
 #include "caffe/blob.hpp"
