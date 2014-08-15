@@ -7,18 +7,11 @@
 namespace caffe {
 
 SyncedMemory::~SyncedMemory() {
-  if (cpu_ptr_ && own_cpu_data_) {
-    CaffeFreeHost(cpu_ptr_);
-  }
-
-#ifndef CPU_ONLY
-  if (gpu_ptr_) {
-    CUDA_CHECK(cudaFree(gpu_ptr_));
-  }
-#endif  // CPU_ONLY
+	clear_data();
 }
 
 inline void SyncedMemory::to_cpu() {
+<<<<<<< HEAD
   switch (head_) {
   case UNINITIALIZED:
     CaffeMallocHost(&cpu_ptr_, size_);
@@ -27,25 +20,36 @@ inline void SyncedMemory::to_cpu() {
     own_cpu_data_ = true;
     break;
   case HEAD_AT_GPU:
+=======
+	switch (head_) {
+	case UNINITIALIZED:
+		CaffeMallocHost(&cpu_ptr_, size_);
+		memset(cpu_ptr_, 0, size_);
+		head_ = HEAD_AT_CPU;
+		own_cpu_data_ = true;
+		break;
+	case HEAD_AT_GPU:
+>>>>>>> sparse_data after merge to master
 #ifndef CPU_ONLY
-    if (cpu_ptr_ == NULL) {
-      CaffeMallocHost(&cpu_ptr_, size_);
-      own_cpu_data_ = true;
-    }
-    caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
-    head_ = SYNCED;
+		if (cpu_ptr_ == NULL) {
+			CaffeMallocHost(&cpu_ptr_, size_);
+			own_cpu_data_ = true;
+		}
+		caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
+		head_ = SYNCED;
 #else
     NO_GPU;
 #endif
-    break;
-  case HEAD_AT_CPU:
-  case SYNCED:
-    break;
-  }
+		break;
+	case HEAD_AT_CPU:
+	case SYNCED:
+		break;
+	}
 }
 
 inline void SyncedMemory::to_gpu() {
 #ifndef CPU_ONLY
+<<<<<<< HEAD
   switch (head_) {
   case UNINITIALIZED:
     CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
@@ -63,25 +67,84 @@ inline void SyncedMemory::to_gpu() {
   case SYNCED:
     break;
   }
+=======
+	switch (head_) {
+	case UNINITIALIZED:
+		CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+		own_gpu_data_ = true;
+		CUDA_CHECK(cudaMemset(gpu_ptr_, 0, size_));
+		head_ = HEAD_AT_GPU;
+		break;
+	case HEAD_AT_CPU:
+		if (gpu_ptr_ == NULL) {
+			CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+			own_gpu_data_ = true;
+		}
+		caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
+		head_ = SYNCED;
+		break;
+	case HEAD_AT_GPU:
+	case SYNCED:
+		break;
+	}
+>>>>>>> sparse_data after merge to master
 #else
   NO_GPU;
 #endif
 }
 
-const void* SyncedMemory::cpu_data() {
-  to_cpu();
-  return (const void*)cpu_ptr_;
+void SyncedMemory::clear_data(){
+	if (cpu_ptr_ && own_cpu_data_) {
+		CaffeFreeHost(cpu_ptr_);
+		cpu_ptr_ = NULL;
+	}
+    #ifndef CPU_ONLY
+	if (gpu_ptr_ && own_gpu_data_) {
+		CUDA_CHECK(cudaFree(gpu_ptr_));
+		gpu_ptr_ = NULL;
+	}
+	#endif  // CPU_ONLY
+	head_ = UNINITIALIZED;
 }
 
-void SyncedMemory::set_cpu_data(void* data) {
-  CHECK(data);
-  if (own_cpu_data_) {
-    CaffeFreeHost(cpu_ptr_);
-  }
-  cpu_ptr_ = data;
-  head_ = HEAD_AT_CPU;
-  own_cpu_data_ = false;
+const void* SyncedMemory::cpu_data() {
+	to_cpu();
+	return (const void*)cpu_ptr_;
 }
+
+void SyncedMemory::set_cpu_data(void* data, int size) {
+	CHECK(data);
+	if (size != -1 && size_ != size){
+		clear_data();
+		size_ = size;
+	}
+	if (cpu_ptr_ && own_cpu_data_) {
+		CaffeFreeHost(cpu_ptr_);
+	}
+	cpu_ptr_ = data;
+	head_ = HEAD_AT_CPU;
+	own_cpu_data_ = false;
+}
+
+void SyncedMemory::set_gpu_data(void* data, int size) {
+#ifndef CPU_ONLY
+	CHECK(data);
+	if (size != -1 && size_ != size){
+		clear_data();
+		size_ = size;
+	}
+	if (gpu_ptr_ && own_gpu_data_) {
+		CUDA_CHECK(cudaFree(gpu_ptr_));
+	}
+
+	gpu_ptr_ = data;
+	head_ = HEAD_AT_GPU;
+	own_gpu_data_ = false;
+#else
+  NO_GPU;
+#endif
+}
+
 
 const void* SyncedMemory::gpu_data() {
 #ifndef CPU_ONLY
@@ -93,9 +156,9 @@ const void* SyncedMemory::gpu_data() {
 }
 
 void* SyncedMemory::mutable_cpu_data() {
-  to_cpu();
-  head_ = HEAD_AT_CPU;
-  return cpu_ptr_;
+	to_cpu();
+	head_ = HEAD_AT_CPU;
+	return cpu_ptr_;
 }
 
 void* SyncedMemory::mutable_gpu_data() {

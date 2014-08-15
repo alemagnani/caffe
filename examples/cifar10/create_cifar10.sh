@@ -10,7 +10,7 @@ echo "Creating leveldb..."
 rm -rf cifar10-leveldb
 mkdir cifar10-leveldb
 
-$EXAMPLES/convert_cifar_data.bin $DATA ./cifar10-leveldb
+$EXAMPLES/e.bin $DATA ./cifar10-leveldb
 
 echo "Computing image mean..."
 

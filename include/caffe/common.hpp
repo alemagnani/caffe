@@ -4,6 +4,7 @@
 #include <boost/shared_ptr.hpp>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <algorithm>
 
 #include <cmath>
 #include <map>
@@ -53,6 +54,14 @@ private:\
       << caffe::cublasGetErrorString(status); \
   } while (0)
 
+#define CUSPARSE_CHECK(condition) \
+  do { \
+    cusparseStatus_t status = condition; \
+    CHECK_EQ(status, CUSPARSE_STATUS_SUCCESS) << " " \
+      << caffe::cusparseGetErrorString(status); \
+  } while (0)
+
+
 #define CURAND_CHECK(condition) \
   do { \
     curandStatus_t status = condition; \
@@ -89,6 +98,8 @@ using std::pair;
 using std::set;
 using std::string;
 using std::vector;
+
+
 
 // A global initialization function that you should call in your main function.
 // Currently it initializes google flags and google logging.
@@ -132,6 +143,8 @@ class Caffe {
   }
 #ifndef CPU_ONLY
   inline static cublasHandle_t cublas_handle() { return Get().cublas_handle_; }
+  inline static cusparseHandle_t cusparse_handle() { return Get().cusparse_handle_; }
+  inline static cusparseMatDescr_t cusparse_mat_descr(){return Get().cusparse_mat_descr_;}
   inline static curandGenerator_t curand_generator() {
     return Get().curand_generator_;
   }
@@ -160,6 +173,8 @@ class Caffe {
  protected:
 #ifndef CPU_ONLY
   cublasHandle_t cublas_handle_;
+  cusparseHandle_t cusparse_handle_;
+  cusparseMatDescr_t cusparse_mat_descr_;
   curandGenerator_t curand_generator_;
 #endif
   shared_ptr<RNG> random_generator_;
@@ -179,16 +194,17 @@ class Caffe {
 
 // NVIDIA_CUDA-5.5_Samples/common/inc/helper_cuda.h
 const char* cublasGetErrorString(cublasStatus_t error);
+const char* cusparseGetErrorString(cusparseStatus_t error);
 const char* curandGetErrorString(curandStatus_t error);
 
 // CUDA: thread number configuration.
 // Use 1024 threads per block, which requires cuda sm_2x or above,
 // or fall back to attempt compatibility (best of luck to you).
-#if __CUDA_ARCH__ >= 200
+//#if __CUDA_ARCH__ >= 200
     const int CAFFE_CUDA_NUM_THREADS = 1024;
-#else
-    const int CAFFE_CUDA_NUM_THREADS = 512;
-#endif
+//#else
+//    const int CAFFE_CUDA_NUM_THREADS = 512;
+//#endif
 
 // CUDA: number of blocks for threads.
 inline int CAFFE_GET_BLOCKS(const int N) {

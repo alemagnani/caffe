@@ -11,6 +11,7 @@ namespace caffe {
 template <typename Dtype>
 class Solver {
  public:
+
   explicit Solver(const SolverParameter& param);
   explicit Solver(const string& param_file);
   void Init(const SolverParameter& param);
@@ -25,6 +26,8 @@ class Solver {
   inline const vector<shared_ptr<Net<Dtype> > >& test_nets() {
     return test_nets_;
   }
+  void Snapshot(const string& filename);
+
 
  protected:
   // PreSolve is run before any solving iteration starts, allowing one to
@@ -37,6 +40,7 @@ class Solver {
   // function that produces a SolverState protocol buffer that needs to be
   // written to disk together with the learned net.
   void Snapshot();
+
   // The test routine
   void TestAll();
   void Test(const int test_net_id = 0);

@@ -7,6 +7,9 @@
 #include "boost/python.hpp"
 #include "boost/python/suite/indexing/vector_indexing_suite.hpp"
 #include "numpy/arrayobject.h"
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/coded_stream.h>
 
 // these need to be included after boost on OS X
 #include <string>  // NOLINT(build/include_order)
@@ -37,36 +40,36 @@ using boost::python::vector_indexing_suite;
 // later if the input files are disturbed before they are actually used, but
 // this saves frustration in most cases)
 static void CheckFile(const string& filename) {
-    std::ifstream f(filename.c_str());
-    if (!f.good()) {
-      f.close();
-      throw std::runtime_error("Could not open file " + filename);
-    }
-    f.close();
+	std::ifstream f(filename.c_str());
+	if (!f.good()) {
+		f.close();
+		throw std::runtime_error("Could not open file " + filename);
+	}
+	f.close();
 }
 
 // wrap shared_ptr<Blob<float> > in a class that we construct in C++ and pass
 // to Python
 class CaffeBlob {
- public:
-  CaffeBlob(const shared_ptr<Blob<float> > &blob, const string& name)
-      : blob_(blob), name_(name) {}
+public:
+	CaffeBlob(const shared_ptr<Blob<float> > &blob, const string& name)
+: blob_(blob), name_(name) {}
 
-  string name() const { return name_; }
-  int num() const { return blob_->num(); }
-  int channels() const { return blob_->channels(); }
-  int height() const { return blob_->height(); }
-  int width() const { return blob_->width(); }
-  int count() const { return blob_->count(); }
+	string name() const { return name_; }
+	int num() const { return blob_->num(); }
+	int channels() const { return blob_->channels(); }
+	int height() const { return blob_->height(); }
+	int width() const { return blob_->width(); }
+	int count() const { return blob_->count(); }
 
-  // this is here only to satisfy boost's vector_indexing_suite
-  bool operator == (const CaffeBlob &other) {
-      return this->blob_ == other.blob_;
-  }
+	// this is here only to satisfy boost's vector_indexing_suite
+	bool operator == (const CaffeBlob &other) {
+		return this->blob_ == other.blob_;
+	}
 
- protected:
-  shared_ptr<Blob<float> > blob_;
-  string name_;
+protected:
+	shared_ptr<Blob<float> > blob_;
+	string name_;
 };
 
 
@@ -74,293 +77,385 @@ class CaffeBlob {
 // self PyObject * which we can use as ndarray.base, so that data/diff memory
 // is not freed while still being used in Python.
 class CaffeBlobWrap : public CaffeBlob {
- public:
-  CaffeBlobWrap(PyObject *p, const CaffeBlob &blob)
-      : CaffeBlob(blob), self_(p) {}
+public:
+	CaffeBlobWrap(PyObject *p, const CaffeBlob &blob)
+: CaffeBlob(blob), self_(p) {}
 
-  object get_data() {
-      npy_intp dims[] = {num(), channels(), height(), width()};
+	object get_data() {
+		//LOG(INFO) << "getting data from blog";
+		npy_intp dims[] = {num(), channels(), height(), width()};
 
-      PyObject *obj = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT32,
-                                                blob_->mutable_cpu_data());
-      PyArray_SetBaseObject(reinterpret_cast<PyArrayObject *>(obj), self_);
-      Py_INCREF(self_);
-      handle<> h(obj);
+		PyObject *obj = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT32,
+				blob_->mutable_cpu_data());
+		PyArray_SetBaseObject(reinterpret_cast<PyArrayObject *>(obj), self_);
+		Py_INCREF(self_);
+		handle<> h(obj);
 
-      return object(h);
-  }
+		return object(h);
+	}
 
-  object get_diff() {
-      npy_intp dims[] = {num(), channels(), height(), width()};
+	object get_diff() {
+		npy_intp dims[] = {num(), channels(), height(), width()};
 
-      PyObject *obj = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT32,
-                                                blob_->mutable_cpu_diff());
-      PyArray_SetBaseObject(reinterpret_cast<PyArrayObject *>(obj), self_);
-      Py_INCREF(self_);
-      handle<> h(obj);
+		PyObject *obj = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT32,
+				blob_->mutable_cpu_diff());
+		PyArray_SetBaseObject(reinterpret_cast<PyArrayObject *>(obj), self_);
+		Py_INCREF(self_);
+		handle<> h(obj);
 
-      return object(h);
-  }
+		return object(h);
+	}
 
- private:
-  PyObject *self_;
+private:
+	PyObject *self_;
 };
 
 
 class CaffeLayer {
- public:
-  CaffeLayer(const shared_ptr<Layer<float> > &layer, const string &name)
-    : layer_(layer), name_(name) {}
+public:
+	CaffeLayer(const shared_ptr<Layer<float> > &layer, const string &name)
+: layer_(layer), name_(name) {}
 
-  string name() const { return name_; }
-  vector<CaffeBlob> blobs() {
-    vector<CaffeBlob> result;
-    for (int i = 0; i < layer_->blobs().size(); ++i) {
-      result.push_back(CaffeBlob(layer_->blobs()[i], name_));
-    }
-    return result;
-  }
+	string name() const { return name_; }
+	vector<CaffeBlob> blobs() {
+		vector<CaffeBlob> result;
+		for (int i = 0; i < layer_->blobs().size(); ++i) {
+			result.push_back(CaffeBlob(layer_->blobs()[i], name_));
+		}
+		return result;
+	}
 
-  // this is here only to satisfy boost's vector_indexing_suite
-  bool operator == (const CaffeLayer &other) {
-      return this->layer_ == other.layer_;
-  }
+	// this is here only to satisfy boost's vector_indexing_suite
+	bool operator == (const CaffeLayer &other) {
+		return this->layer_ == other.layer_;
+	}
 
- protected:
-  shared_ptr<Layer<float> > layer_;
-  string name_;
+protected:
+	shared_ptr<Layer<float> > layer_;
+	string name_;
 };
 
 
 // A simple wrapper over CaffeNet that runs the forward process.
 struct CaffeNet {
-  // For cases where parameters will be determined later by the Python user,
-  // create a Net with unallocated parameters (which will not be zero-filled
-  // when accessed).
-  explicit CaffeNet(string param_file) {
-    Init(param_file);
-  }
+	// For cases where parameters will be determined later by the Python user,
+	// create a Net with unallocated parameters (which will not be zero-filled
+	// when accessed).
+	explicit CaffeNet(string param_file) {
+		Init(param_file);
+	}
 
-  CaffeNet(string param_file, string pretrained_param_file) {
-    Init(param_file);
-    CheckFile(pretrained_param_file);
-    net_->CopyTrainedLayersFrom(pretrained_param_file);
-  }
+	CaffeNet(string param_file, string pretrained_param_file, bool isFile=true) {
+		if (isFile){
+			Init(param_file);
+		}else{
+			InitTextProto(param_file);
+		}
+		CheckFile(pretrained_param_file);
+		net_->CopyTrainedLayersFrom(pretrained_param_file);
+	}
 
-  explicit CaffeNet(shared_ptr<Net<float> > net)
-      : net_(net) {}
+	explicit CaffeNet(shared_ptr<Net<float> > net)
+	: net_(net) {}
 
-  void Init(string param_file) {
-    CheckFile(param_file);
-    net_.reset(new Net<float>(param_file));
-  }
+	void Init(string param_file) {
+		CheckFile(param_file);
+		net_.reset(new Net<float>(param_file));
+	}
+
+	void InitTextProto(string& proto_text) {
+		NetParameter netParam;
+		google::protobuf::TextFormat::ParseFromString(proto_text, &netParam);
+		net_.reset(new Net<float>(netParam));
+	}
 
 
-  virtual ~CaffeNet() {}
+	virtual ~CaffeNet() {}
 
-  // Generate Python exceptions for badly shaped or discontiguous arrays.
-  inline void check_contiguous_array(PyArrayObject* arr, string name,
-      int channels, int height, int width) {
-    if (!(PyArray_FLAGS(arr) & NPY_ARRAY_C_CONTIGUOUS)) {
-      throw std::runtime_error(name + " must be C contiguous");
-    }
-    if (PyArray_NDIM(arr) != 4) {
-      throw std::runtime_error(name + " must be 4-d");
-    }
-    if (PyArray_TYPE(arr) != NPY_FLOAT32) {
-      throw std::runtime_error(name + " must be float32");
-    }
-    if (PyArray_DIMS(arr)[1] != channels) {
-      throw std::runtime_error(name + " has wrong number of channels");
-    }
-    if (PyArray_DIMS(arr)[2] != height) {
-      throw std::runtime_error(name + " has wrong height");
-    }
-    if (PyArray_DIMS(arr)[3] != width) {
-      throw std::runtime_error(name + " has wrong width");
-    }
-  }
+	// Generate Python exceptions for badly shaped or discontiguous arrays.
+	inline void check_contiguous_array(PyArrayObject* arr, string name,
+			int channels, int height, int width) {
+		if (!(PyArray_FLAGS(arr) & NPY_ARRAY_C_CONTIGUOUS)) {
+			throw std::runtime_error(name + " must be C contiguous");
+		}
+		if (PyArray_NDIM(arr) != 4) {
+			throw std::runtime_error(name + " must be 4-d");
+		}
+		if (PyArray_TYPE(arr) != NPY_FLOAT32) {
+			throw std::runtime_error(name + " must be float32");
+		}
+		if (PyArray_DIMS(arr)[1] != channels) {
+			throw std::runtime_error(name + " has wrong number of channels");
+		}
+		if (PyArray_DIMS(arr)[2] != height) {
+			throw std::runtime_error(name + " has wrong height");
+		}
+		if (PyArray_DIMS(arr)[3] != width) {
+			throw std::runtime_error(name + " has wrong width");
+		}
+	}
 
-  void Forward(int start, int end) {
-    net_->ForwardFromTo(start, end);
-  }
+	  void Forward(int start, int end) {
+	    net_->ForwardFromTo(start, end);
+	  }
 
-  void Backward(int start, int end) {
-    net_->BackwardFromTo(start, end);
-  }
+	  void Backward(int start, int end) {
+	    net_->BackwardFromTo(start, end);
+	  }
 
-  void set_input_arrays(object data_obj, object labels_obj) {
-    // check that this network has an input MemoryDataLayer
-    shared_ptr<MemoryDataLayer<float> > md_layer =
-      boost::dynamic_pointer_cast<MemoryDataLayer<float> >(net_->layers()[0]);
-    if (!md_layer) {
-      throw std::runtime_error("set_input_arrays may only be called if the"
-          " first layer is a MemoryDataLayer");
-    }
+	void set_input_arrays(object data_obj, object labels_obj) {
+		// check that this network has an input MemoryDataLayer
+		shared_ptr<MemoryDataLayer<float> > md_layer =
+				boost::dynamic_pointer_cast<MemoryDataLayer<float> >(net_->layers()[0]);
+		if (!md_layer) {
+			throw std::runtime_error("set_input_arrays may only be called if the"
+					" first layer is a MemoryDataLayer");
+		}
 
-    // check that we were passed appropriately-sized contiguous memory
-    PyArrayObject* data_arr =
-        reinterpret_cast<PyArrayObject*>(data_obj.ptr());
-    PyArrayObject* labels_arr =
-        reinterpret_cast<PyArrayObject*>(labels_obj.ptr());
-    check_contiguous_array(data_arr, "data array", md_layer->datum_channels(),
-        md_layer->datum_height(), md_layer->datum_width());
-    check_contiguous_array(labels_arr, "labels array", 1, 1, 1);
-    if (PyArray_DIMS(data_arr)[0] != PyArray_DIMS(labels_arr)[0]) {
-      throw std::runtime_error("data and labels must have the same first"
-          " dimension");
-    }
-    if (PyArray_DIMS(data_arr)[0] % md_layer->batch_size() != 0) {
-      throw std::runtime_error("first dimensions of input arrays must be a"
-          " multiple of batch size");
-    }
+		// check that we were passed appropriately-sized contiguous memory
+		PyArrayObject* data_arr =
+				reinterpret_cast<PyArrayObject*>(data_obj.ptr());
+		PyArrayObject* labels_arr =
+				reinterpret_cast<PyArrayObject*>(labels_obj.ptr());
+		check_contiguous_array(data_arr, "data array", md_layer->datum_channels(),
+				md_layer->datum_height(), md_layer->datum_width());
+		check_contiguous_array(labels_arr, "labels array", 1, 1, 1);
+		if (PyArray_DIMS(data_arr)[0] != PyArray_DIMS(labels_arr)[0]) {
+			throw std::runtime_error("data and labels must have the same first"
+					" dimension");
+		}
+		if (PyArray_DIMS(data_arr)[0] % md_layer->batch_size() != 0) {
+			throw std::runtime_error("first dimensions of input arrays must be a"
+					" multiple of batch size");
+		}
 
-    // hold references
-    input_data_ = data_obj;
-    input_labels_ = labels_obj;
+		// hold references
+		input_data_ = data_obj;
+		input_labels_ = labels_obj;
 
-    md_layer->Reset(static_cast<float*>(PyArray_DATA(data_arr)),
-        static_cast<float*>(PyArray_DATA(labels_arr)),
-        PyArray_DIMS(data_arr)[0]);
-  }
+		md_layer->Reset(static_cast<float*>(PyArray_DATA(data_arr)),
+				static_cast<float*>(PyArray_DATA(labels_arr)),
+				PyArray_DIMS(data_arr)[0]);
+	}
 
-  // save the network weights to binary proto for net surgeries.
-  void save(string filename) {
-    NetParameter net_param;
-    net_->ToProto(&net_param, false);
-    WriteProtoToBinaryFile(net_param, filename.c_str());
-  }
+	void set_input_sparse_arrays(object data_obj, object indices_obj, object ptr_obj, int rows, int cols, object labels_obj) {
+		// check that this network has an input MemoryDataLayerSparse
+		shared_ptr<MemoryDataLayerSparse<float> > md_layer =
+				boost::dynamic_pointer_cast<MemoryDataLayerSparse<float> >(net_->layers()[0]);
+		if (!md_layer) {
+			throw std::runtime_error("set_input_arrays_sparse may only be called if the"
+					" first layer is a MemoryDataLayerSparse");
+		}
 
-  // The caffe::Caffe utility functions.
-  void set_mode_cpu() { Caffe::set_mode(Caffe::CPU); }
-  void set_mode_gpu() { Caffe::set_mode(Caffe::GPU); }
-  void set_phase_train() { Caffe::set_phase(Caffe::TRAIN); }
-  void set_phase_test() { Caffe::set_phase(Caffe::TEST); }
-  void set_device(int device_id) { Caffe::SetDevice(device_id); }
+		// check that we were passed appropriately-sized contiguous memory
+		PyArrayObject* data_arr =
+				reinterpret_cast<PyArrayObject*>(data_obj.ptr());
+		if (PyArray_TYPE(data_arr) != NPY_FLOAT32) {
+			throw std::runtime_error("data in sparse must be float32");
+		}
+		PyArrayObject* indices_arr =
+				reinterpret_cast<PyArrayObject*>(indices_obj.ptr());
+		if (PyArray_TYPE(indices_arr) != NPY_INT32) {
+			throw std::runtime_error("indices in sparse must be int32");
+		}
+		PyArrayObject* ptr_arr =
+				reinterpret_cast<PyArrayObject*>(ptr_obj.ptr());
+		if (PyArray_TYPE(ptr_arr) != NPY_INT32) {
+			throw std::runtime_error("ptr in sparse must be int32");
+		}
 
-  vector<CaffeBlob> blobs() {
-    vector<CaffeBlob> result;
-    for (int i = 0; i < net_->blobs().size(); ++i) {
-      result.push_back(CaffeBlob(net_->blobs()[i], net_->blob_names()[i]));
-    }
-    return result;
-  }
+		PyArrayObject* labels_arr =
+				reinterpret_cast<PyArrayObject*>(labels_obj.ptr());
+		if (PyArray_TYPE(labels_arr) != NPY_FLOAT32) {
+			throw std::runtime_error("labels in sparse must be float32");
+		}
 
-  vector<CaffeLayer> layers() {
-    vector<CaffeLayer> result;
-    for (int i = 0; i < net_->layers().size(); ++i) {
-      result.push_back(CaffeLayer(net_->layers()[i], net_->layer_names()[i]));
-    }
-    return result;
-  }
+		int size = md_layer->datum_size();
 
-  list inputs() {
-    list input_blob_names;
-    for (int i = 0; i < net_->input_blob_indices().size(); ++i) {
-      input_blob_names.append(
-          net_->blob_names()[net_->input_blob_indices()[i]]);
-    }
-    return input_blob_names;
-  }
+		//check_contiguous_array(data_arr, "data array", 1,
+		//   md_layer->datum_height(), md_layer->datum_width());
+		//check_contiguous_array(labels_arr, "labels array", 1, 1, 1);
+		if (cols != size) {
+			throw std::runtime_error("the number of cols should match the size of the layer");
+		}
+		if (rows != PyArray_DIMS(labels_arr)[0]) {
+			throw std::runtime_error("data and labels must have the same first"
+					" dimension");
+		}
+		if (PyArray_DIMS(indices_arr)[0] != PyArray_DIMS(data_arr)[0]) {
+			throw std::runtime_error("data and indices should have the same length");
+		}
+		if (PyArray_DIMS(ptr_arr)[0] != (rows+1)) {
+			throw std::runtime_error("ptr size should be rows+1");
+		}
 
-  list outputs() {
-    list output_blob_names;
-    for (int i = 0; i < net_->output_blob_indices().size(); ++i) {
-      output_blob_names.append(
-          net_->blob_names()[net_->output_blob_indices()[i]]);
-    }
-    return output_blob_names;
-  }
+		// hold references
+		input_data_ = data_obj;
+		input_labels_ = labels_obj;
+		input_indices_ = indices_obj;
+		input_ptr_ = ptr_obj;
 
-  // The pointer to the internal caffe::Net instant.
-  shared_ptr<Net<float> > net_;
-  // Input preprocessing configuration attributes.
-  dict mean_;
-  dict input_scale_;
-  dict raw_scale_;
-  dict channel_swap_;
-  // if taking input from an ndarray, we need to hold references
-  object input_data_;
-  object input_labels_;
+		md_layer->Reset(static_cast<float*>(PyArray_DATA(data_arr)),
+				static_cast<int*>(PyArray_DATA(indices_arr)),
+				static_cast<int*>(PyArray_DATA(ptr_arr)),
+				static_cast<float*>(PyArray_DATA(labels_arr)),
+				rows, cols);
+	}
+
+	  // save the network weights to binary proto for net surgeries.
+	  void save(string filename) {
+	    NetParameter net_param;
+	    net_->ToProto(&net_param, false);
+	    WriteProtoToBinaryFile(net_param, filename.c_str());
+	  }
+
+
+
+	// The caffe::Caffe utility functions.
+	void set_mode_cpu() { Caffe::set_mode(Caffe::CPU); }
+	void set_mode_gpu() { Caffe::set_mode(Caffe::GPU); }
+	void set_phase_train() { Caffe::set_phase(Caffe::TRAIN); }
+	void set_phase_test() { Caffe::set_phase(Caffe::TEST); }
+	void set_device(int device_id) { Caffe::SetDevice(device_id); }
+
+	vector<CaffeBlob> blobs() {
+		vector<CaffeBlob> result;
+		for (int i = 0; i < net_->blobs().size(); ++i) {
+			result.push_back(CaffeBlob(net_->blobs()[i], net_->blob_names()[i]));
+		}
+		return result;
+	}
+
+	vector<CaffeLayer> layers() {
+		vector<CaffeLayer> result;
+		for (int i = 0; i < net_->layers().size(); ++i) {
+			result.push_back(CaffeLayer(net_->layers()[i], net_->layer_names()[i]));
+		}
+		return result;
+	}
+
+	list inputs() {
+		list input_blob_names;
+		for (int i = 0; i < net_->input_blob_indices().size(); ++i) {
+			input_blob_names.append(
+					net_->blob_names()[net_->input_blob_indices()[i]]);
+		}
+		return input_blob_names;
+	}
+
+	list outputs() {
+		list output_blob_names;
+		for (int i = 0; i < net_->output_blob_indices().size(); ++i) {
+			output_blob_names.append(
+					net_->blob_names()[net_->output_blob_indices()[i]]);
+		}
+		return output_blob_names;
+	}
+
+	// The pointer to the internal caffe::Net instant.
+	shared_ptr<Net<float> > net_;
+	// Input preprocessing configuration attributes.
+	dict mean_;
+	dict input_scale_;
+	dict raw_scale_;
+	dict channel_swap_;
+	// if taking input from an ndarray, we need to hold references
+	object input_data_;
+	object input_labels_;
+	object input_indices_;
+	object input_ptr_;
 };
 
 class CaffeSGDSolver {
- public:
-  explicit CaffeSGDSolver(const string& param_file) {
-    // as in CaffeNet, (as a convenience, not a guarantee), create a Python
-    // exception if param_file can't be opened
-    CheckFile(param_file);
-    solver_.reset(new SGDSolver<float>(param_file));
-    // we need to explicitly store the net wrapper, rather than constructing
-    // it on the fly, so that it can hold references to Python objects
-    net_.reset(new CaffeNet(solver_->net()));
-  }
+public:
+	explicit CaffeSGDSolver(const string& param_file_or_param_txt_serialized, bool isFile=true) {
+		if(isFile){
+			// as in CaffeNet, (as a convenience, not a guarantee), create a Python
+			// exception if param_file can't be opened
+			CheckFile(param_file_or_param_txt_serialized);
+			solver_.reset(new SGDSolver<float>(param_file_or_param_txt_serialized));
+		}else{
+			SolverParameter param;
+			google::protobuf::TextFormat::ParseFromString(param_file_or_param_txt_serialized, &param);
+			solver_.reset(new SGDSolver<float>(param));
+		}
+		// we need to explicitly store the net wrapper, rather than constructing
+		// it on the fly, so that it can hold references to Python objects
+		net_.reset(new CaffeNet(solver_->net()));
+	}
 
-  shared_ptr<CaffeNet> net() { return net_; }
-  void Solve() { return solver_->Solve(); }
-  void SolveResume(const string& resume_file) {
-    CheckFile(resume_file);
-    return solver_->Solve(resume_file);
-  }
+	void snapshot(const string& filename){
+		solver_->Snapshot(filename);
+	}
 
- protected:
-  shared_ptr<CaffeNet> net_;
-  shared_ptr<SGDSolver<float> > solver_;
+	shared_ptr<CaffeNet> net() { return net_; }
+
+	void Solve() { return solver_->Solve(); }
+	void SolveResume(const string& resume_file) {
+		CheckFile(resume_file);
+		return solver_->Solve(resume_file);
+	}
+
+protected:
+	shared_ptr<CaffeNet> net_;
+	shared_ptr<SGDSolver<float> > solver_;
 };
 
 
 // The boost_python module definition.
 BOOST_PYTHON_MODULE(_caffe) {
-  // below, we prepend an underscore to methods that will be replaced
-  // in Python
-  boost::python::class_<CaffeNet, shared_ptr<CaffeNet> >(
-      "Net", boost::python::init<string, string>())
-      .def(boost::python::init<string>())
-      .def("_forward",              &CaffeNet::Forward)
-      .def("_backward",             &CaffeNet::Backward)
-      .def("set_mode_cpu",          &CaffeNet::set_mode_cpu)
-      .def("set_mode_gpu",          &CaffeNet::set_mode_gpu)
-      .def("set_phase_train",       &CaffeNet::set_phase_train)
-      .def("set_phase_test",        &CaffeNet::set_phase_test)
-      .def("set_device",            &CaffeNet::set_device)
-      .add_property("_blobs",       &CaffeNet::blobs)
-      .add_property("layers",       &CaffeNet::layers)
-      .add_property("inputs",       &CaffeNet::inputs)
-      .add_property("outputs",      &CaffeNet::outputs)
-      .add_property("mean",         &CaffeNet::mean_)
-      .add_property("input_scale",  &CaffeNet::input_scale_)
-      .add_property("raw_scale",    &CaffeNet::raw_scale_)
-      .add_property("channel_swap", &CaffeNet::channel_swap_)
-      .def("_set_input_arrays",     &CaffeNet::set_input_arrays)
-      .def("save",                  &CaffeNet::save);
+	// below, we prepend an underscore to methods that will be replaced
+	// in Python
+	boost::python::class_<CaffeNet, shared_ptr<CaffeNet> >(
+			"Net", boost::python::init<string, string>())
+    		  .def(boost::python::init<string>())
+    		  .def(boost::python::init<string,string,bool>())
+    		  .def("_forward",          &CaffeNet::Forward)
+    		  .def("_backward",         &CaffeNet::Backward)
+    		  .def("set_mode_cpu",      &CaffeNet::set_mode_cpu)
+    		  .def("set_mode_gpu",      &CaffeNet::set_mode_gpu)
+    		  .def("set_phase_train",   &CaffeNet::set_phase_train)
+    		  .def("set_phase_test",    &CaffeNet::set_phase_test)
+    		  .def("set_device",        &CaffeNet::set_device)
+    		  .add_property("_blobs",   &CaffeNet::blobs)
+    		  .add_property("layers",   &CaffeNet::layers)
+    		  .add_property("inputs",   &CaffeNet::inputs)
+    		  .add_property("outputs",  &CaffeNet::outputs)
+    		  .def("_set_input_sparse_arrays", &CaffeNet::set_input_sparse_arrays)
+    		  .def("_set_input_arrays", &CaffeNet::set_input_arrays)
+    		  .def("save",                  &CaffeNet::save);
 
-  boost::python::class_<CaffeBlob, CaffeBlobWrap>(
-      "Blob", boost::python::no_init)
-      .add_property("name",     &CaffeBlob::name)
-      .add_property("num",      &CaffeBlob::num)
-      .add_property("channels", &CaffeBlob::channels)
-      .add_property("height",   &CaffeBlob::height)
-      .add_property("width",    &CaffeBlob::width)
-      .add_property("count",    &CaffeBlob::count)
-      .add_property("data",     &CaffeBlobWrap::get_data)
-      .add_property("diff",     &CaffeBlobWrap::get_diff);
 
-  boost::python::class_<CaffeLayer>(
-      "Layer", boost::python::no_init)
-      .add_property("name",  &CaffeLayer::name)
-      .add_property("blobs", &CaffeLayer::blobs);
+	boost::python::class_<CaffeBlob, CaffeBlobWrap>(
+			"Blob", boost::python::no_init)
+    		  .add_property("name",     &CaffeBlob::name)
+    		  .add_property("num",      &CaffeBlob::num)
+    		  .add_property("channels", &CaffeBlob::channels)
+    		  .add_property("height",   &CaffeBlob::height)
+    		  .add_property("width",    &CaffeBlob::width)
+    		  .add_property("count",    &CaffeBlob::count)
+    		  .add_property("data",     &CaffeBlobWrap::get_data)
+    		  .add_property("diff",     &CaffeBlobWrap::get_diff);
 
-  boost::python::class_<CaffeSGDSolver, boost::noncopyable>(
-      "SGDSolver", boost::python::init<string>())
-      .add_property("net", &CaffeSGDSolver::net)
-      .def("solve",        &CaffeSGDSolver::Solve)
-      .def("solve",        &CaffeSGDSolver::SolveResume);
 
-  boost::python::class_<vector<CaffeBlob> >("BlobVec")
-      .def(vector_indexing_suite<vector<CaffeBlob>, true>());
+	boost::python::class_<CaffeLayer>(
+			"Layer", boost::python::no_init)
+    		  .add_property("name",  &CaffeLayer::name)
+    		  .add_property("blobs", &CaffeLayer::blobs);
 
-  boost::python::class_<vector<CaffeLayer> >("LayerVec")
-      .def(vector_indexing_suite<vector<CaffeLayer>, true>());
+	boost::python::class_<CaffeSGDSolver, boost::noncopyable>(
+			"SGDSolver", boost::python::init<string,bool>())
+				.def(boost::python::init<string>())
+    		  .add_property("net", &CaffeSGDSolver::net)
+    		  .def("solve",        &CaffeSGDSolver::Solve)
+    		  .def("snapshot",      &CaffeSGDSolver::snapshot)
+    		  .def("solve",        &CaffeSGDSolver::SolveResume);
 
-  import_array();
+	boost::python::class_<vector<CaffeBlob> >("BlobVec")
+    		  .def(vector_indexing_suite<vector<CaffeBlob>, true>());
+
+	boost::python::class_<vector<CaffeLayer> >("LayerVec")
+    		  .def(vector_indexing_suite<vector<CaffeLayer>, true>());
+
+	import_array();
 }

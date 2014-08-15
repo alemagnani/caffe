@@ -11,6 +11,7 @@
 #include "lmdb.h"
 
 #include "caffe/blob.hpp"
+#include "caffe/sparse_blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/filler.hpp"
 #include "caffe/internal_thread.hpp"
@@ -79,6 +80,50 @@ class DataLayer : public Layer<Dtype>, public InternalThread {
   bool output_labels_;
   Caffe::Phase phase_;
 };
+
+////////////////////// data layer with sparse input /////////
+template <typename Dtype>
+void* DataLayerSparseInputPrefetch(void* layer_pointer);
+
+template <typename Dtype>
+class DataLayerSparseInput : public Layer<Dtype> {
+	// The function used to perform prefetching.
+	friend void* DataLayerSparseInputPrefetch<Dtype>(void* layer_pointer);
+
+public:
+	explicit DataLayerSparseInput(const LayerParameter& param)
+	: Layer<Dtype>(param) {}
+	virtual ~DataLayerSparseInput();
+	virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
+
+protected:
+	virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
+	virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
+	virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+			const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return;}
+	virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+			const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return;}
+
+	virtual void CreatePrefetchThread();
+	virtual void JoinPrefetchThread();
+
+	shared_ptr<leveldb::DB> db_;
+	shared_ptr<leveldb::Iterator> iter_;
+	int datum_size_;
+
+	pthread_t thread_;
+	shared_ptr<SparseBlob<Dtype> > prefetch_data_;
+	shared_ptr<SparseBlob<Dtype> > prefetch_data_copy_;
+	shared_ptr<Blob<Dtype> > prefetch_label_;
+	shared_ptr<Blob<Dtype> > prefetch_label_copy_;
+
+	bool output_labels_;
+	Caffe::Phase phase_;
+};
+/////////////////////////////////////////////////////
 
 template <typename Dtype>
 class DummyDataLayer : public Layer<Dtype> {
@@ -219,8 +264,7 @@ class ImageDataLayer : public Layer<Dtype>, public InternalThread {
   Caffe::Phase phase_;
 };
 
-/* MemoryDataLayer
-*/
+
 template <typename Dtype>
 class MemoryDataLayer : public Layer<Dtype> {
  public:
@@ -260,6 +304,44 @@ class MemoryDataLayer : public Layer<Dtype> {
   int batch_size_;
   int n_;
   int pos_;
+};
+
+template <typename Dtype>
+class MemoryDataLayerSparse : public Layer<Dtype>{
+public:
+	explicit MemoryDataLayerSparse(const LayerParameter& param)
+	: Layer<Dtype>(param), blob_(), labels_() {}
+
+	virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
+
+	// Reset should accept const pointers, but can't, because the memory
+	//  will be given to Blob, which is mutable
+	void Reset(Dtype* data, int* indices, int* ptr,  Dtype* label, int rows, int cols);
+
+	int datum_size() { return datum_size_; }
+	int batch_size() { return batch_size_; }
+
+	 Dtype* cpu_labels() const;
+	 Dtype* gpu_labels() const;
+
+protected:
+		virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+				vector<Blob<Dtype>*>* top);
+		virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+				vector<Blob<Dtype>*>* top);
+		virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+				const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return; }
+		virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+				const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return; }
+
+	shared_ptr<SparseBlob<Dtype> > blob_;
+	shared_ptr<SyncedMemory> labels_;
+
+	int datum_size_;
+	int batch_size_;
+	int rows_;
+	int pos_;
 };
 
 template <typename Dtype>

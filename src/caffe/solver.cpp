@@ -328,6 +328,20 @@ void Solver<Dtype>::Snapshot() {
 }
 
 template <typename Dtype>
+void Solver<Dtype>::Snapshot(const string& filename) {
+        NetParameter net_param;
+        // For intermediate results, we will also dump the gradient values.
+        net_->ToProto(&net_param, param_.snapshot_diff());
+
+        const int kBufferSize = 20;
+        char iter_str_buffer[kBufferSize];
+        snprintf(iter_str_buffer, kBufferSize, "_iter_%d", iter_);
+
+        LOG(INFO) << "Snapshotting to " << filename;
+        WriteProtoToBinaryFile(net_param, filename.c_str());
+}
+
+template <typename Dtype>
 void Solver<Dtype>::Restore(const char* state_file) {
   SolverState state;
   NetParameter net_param;
