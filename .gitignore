@@ -67,3 +67,8 @@ _site
 
 # CMake generated files
 *.gen.cmake
+
+# IntellyJ
+.idea
+.settings
+

@@ -6,6 +6,7 @@ interface.
 from collections import OrderedDict
 from itertools import izip_longest
 import numpy as np
+from scipy.sparse import csr_matrix
 
 from ._caffe import Net, SGDSolver
 import caffe.io
@@ -151,7 +152,12 @@ def _Net_forward_all(self, blobs=None, **kwargs):
     for out in all_outs:
         all_outs[out] = np.asarray(all_outs[out])
     # Discard padding.
-    pad = len(all_outs.itervalues().next()) - len(kwargs.itervalues().next())
+    one_value = kwargs.itervalues().next()
+    if isinstance(one_value,csr_matrix):
+        r = one_value.shape[0]
+    else:
+        r = len(one_value)
+    pad = len(all_outs.itervalues().next()) - r
     if pad:
         for out in all_outs:
             all_outs[out] = all_outs[out][:-pad]
@@ -343,6 +349,45 @@ def _Net_set_input_arrays(self, data, labels):
                                              np.newaxis])
     return self._set_input_arrays(data, labels)
 
+def _Net_set_input_sparse_arrays(self, sparse_data, labels):
+    """
+    Set input arrays of the in-memory MemoryDataSparseLayer.
+    (Note: this is only for networks declared with the memory sparse data layer.)
+    """
+    if labels.ndim == 1:
+        labels = np.ascontiguousarray(labels[:, np.newaxis, np.newaxis,
+                                             np.newaxis])
+
+    if not isinstance(sparse_data,csr_matrix):
+        raise Exception('the data should be in csr sparse format')
+
+
+    print 'dtype indices {}'.format(sparse_data.indices.dtype)
+    #data_obj, object labels_obj, object indices_obj, object ptr_obj, int cols, int row
+    print 'setting input sparse matrices'
+
+    check_correct_indeces(sparse_data)
+    return self._set_input_sparse_arrays(sparse_data.data,sparse_data.indices,sparse_data.indptr, sparse_data.shape[0], sparse_data.shape[1], labels )
+
+#cusparse takes only csr matrices with sorted indices but scipy doesn't care
+def check_correct_indeces(X):
+    ind = X.indices
+    ptr = X.indptr
+    data = X.data
+
+    for k in xrange(len(ptr)-1):
+        begin = ptr[k]
+        end = ptr[k+1]
+
+        idx   = np.argsort(ind[begin:end])
+        ind[begin:end] = ind[begin:end][idx]
+        data[begin:end] = data[begin:end][idx]
+
+def toDense(X):
+    if isinstance(X, csr_matrix):
+        s = X.shape
+        return np.resize(X.todense(),(s[0], s[1], 1, 1)).astype(np.float32)
+    return X
 
 def _Net_batch(self, blobs):
     """
@@ -355,7 +400,13 @@ def _Net_batch(self, blobs):
     Give (yield)
     batch: {blob name: list of blobs} dict for a single batch.
     """
-    num = len(blobs.itervalues().next())
+    one_value = blobs.itervalues().next()
+    isSparse = False
+    if isinstance(one_value,csr_matrix):
+        num = one_value.shape[0]
+        isSparse = True
+    else:
+        num = len(one_value)
     batch_size = self.blobs.itervalues().next().num
     remainder = num % batch_size
     num_batches = num / batch_size
@@ -363,16 +414,18 @@ def _Net_batch(self, blobs):
     # Yield full batches.
     for b in range(num_batches):
         i = b * batch_size
-        yield {name: blobs[name][i:i + batch_size] for name in blobs}
+        yield {name: toDense(blobs[name][i:i + batch_size]) for name in blobs}
 
     # Yield last padded batch, if any.
     if remainder > 0:
         padded_batch = {}
         for name in blobs:
-            padding = np.zeros((batch_size - remainder,)
+            if isSparse:
+                padding = np.zeros((batch_size - remainder, blobs[name].shape[1], 1, 1 ),dtype=np.float32)
+            else:
+                padding = np.zeros((batch_size - remainder,)
                                + blobs[name].shape[1:])
-            padded_batch[name] = np.concatenate([blobs[name][-remainder:],
-                                                 padding])
+            padded_batch[name] = np.concatenate([toDense(blobs[name][-remainder:]),padding])
         yield padded_batch
 
 
@@ -390,4 +443,5 @@ Net.set_channel_swap = _Net_set_channel_swap
 Net.preprocess = _Net_preprocess
 Net.deprocess = _Net_deprocess
 Net.set_input_arrays = _Net_set_input_arrays
+Net.set_input_sparse_arrays = _Net_set_input_sparse_arrays
 Net._batch = _Net_batch

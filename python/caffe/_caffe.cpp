@@ -8,6 +8,10 @@
 #include "boost/python/suite/indexing/vector_indexing_suite.hpp"
 #include "numpy/arrayobject.h"
 
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
+
 // these need to be included after boost on OS X
 #include <string>  // NOLINT(build/include_order)
 #include <vector>  // NOLINT(build/include_order)
@@ -141,8 +145,12 @@ struct CaffeNet {
     Init(param_file);
   }
 
-  CaffeNet(string param_file, string pretrained_param_file) {
-    Init(param_file);
+  CaffeNet(string param_file, string pretrained_param_file, bool isFile=true) {
+    if (isFile){
+        Init(param_file);
+    }else{
+        InitTextProto(param_file);
+    }
     CheckFile(pretrained_param_file);
     net_->CopyTrainedLayersFrom(pretrained_param_file);
   }
@@ -158,6 +166,13 @@ struct CaffeNet {
 
   virtual ~CaffeNet() {}
 
+  // Generate Python exceptions for badly shaped or discontiguou  
+  void InitTextProto(string& proto_text) {
+    NetParameter netParam;
+    google::protobuf::TextFormat::ParseFromString(proto_text, &netParam);
+    net_.reset(new Net<float>(netParam));
+  }
+  
   // Generate Python exceptions for badly shaped or discontiguous arrays.
   inline void check_contiguous_array(PyArrayObject* arr, string name,
       int channels, int height, int width) {
@@ -223,6 +238,70 @@ struct CaffeNet {
         static_cast<float*>(PyArray_DATA(labels_arr)),
         PyArray_DIMS(data_arr)[0]);
   }
+  
+  void set_input_sparse_arrays(object data_obj, object indices_obj, object ptr_obj, int rows, int cols, object labels_obj) {
+    // check that this network has an input MemoryDataLayerSparse
+    shared_ptr<MemoryDataLayerSparse<float> > md_layer =
+        boost::dynamic_pointer_cast<MemoryDataLayerSparse<float> >(net_->layers()[0]);
+    if (!md_layer) {
+      throw std::runtime_error("set_input_arrays_sparse may only be called if the"
+          " first layer is a MemoryDataLayerSparse");
+    }
+
+    // check that we were passed appropriately-sized contiguous memory
+    PyArrayObject* data_arr =
+        reinterpret_cast<PyArrayObject*>(data_obj.ptr());
+    if (PyArray_TYPE(data_arr) != NPY_FLOAT32) {
+      throw std::runtime_error("data in sparse must be float32");
+    }
+    PyArrayObject* indices_arr =
+        reinterpret_cast<PyArrayObject*>(indices_obj.ptr());
+    if (PyArray_TYPE(indices_arr) != NPY_INT32) {
+      throw std::runtime_error("indices in sparse must be int32");
+    }
+    PyArrayObject* ptr_arr =
+        reinterpret_cast<PyArrayObject*>(ptr_obj.ptr());
+    if (PyArray_TYPE(ptr_arr) != NPY_INT32) {
+      throw std::runtime_error("ptr in sparse must be int32");
+    }
+
+    PyArrayObject* labels_arr =
+        reinterpret_cast<PyArrayObject*>(labels_obj.ptr());
+    if (PyArray_TYPE(labels_arr) != NPY_FLOAT32) {
+      throw std::runtime_error("labels in sparse must be float32");
+    }
+
+    int size = md_layer->datum_size();
+
+    //check_contiguous_array(data_arr, "data array", 1,
+    //   md_layer->datum_height(), md_layer->datum_width());
+    //check_contiguous_array(labels_arr, "labels array", 1, 1, 1);
+    if (cols != size) {
+      throw std::runtime_error("the number of cols should match the size of the layer");
+    }
+    if (rows != PyArray_DIMS(labels_arr)[0]) {
+      throw std::runtime_error("data and labels must have the same first"
+          " dimension");
+    }
+    if (PyArray_DIMS(indices_arr)[0] != PyArray_DIMS(data_arr)[0]) {
+      throw std::runtime_error("data and indices should have the same length");
+    }
+    if (PyArray_DIMS(ptr_arr)[0] != (rows+1)) {
+      throw std::runtime_error("ptr size should be rows+1");
+    }
+
+    // hold references
+    input_data_ = data_obj;
+    input_labels_ = labels_obj;
+    input_indices_ = indices_obj;
+    input_ptr_ = ptr_obj;
+
+    md_layer->Reset(static_cast<float*>(PyArray_DATA(data_arr)),
+                    static_cast<int*>(PyArray_DATA(indices_arr)),
+                    static_cast<int*>(PyArray_DATA(ptr_arr)),
+                    static_cast<float*>(PyArray_DATA(labels_arr)),
+                    rows, cols);
+  }
 
   // save the network weights to binary proto for net surgeries.
   void save(string filename) {
@@ -282,19 +361,27 @@ struct CaffeNet {
   // if taking input from an ndarray, we need to hold references
   object input_data_;
   object input_labels_;
+  object input_indices_;
+  object input_ptr_;
 };
 
 class CaffeSGDSolver {
- public:
-  explicit CaffeSGDSolver(const string& param_file) {
-    // as in CaffeNet, (as a convenience, not a guarantee), create a Python
-    // exception if param_file can't be opened
-    CheckFile(param_file);
-    solver_.reset(new SGDSolver<float>(param_file));
-    // we need to explicitly store the net wrapper, rather than constructing
-    // it on the fly, so that it can hold references to Python objects
-    net_.reset(new CaffeNet(solver_->net()));
-  }
+public:
+	explicit CaffeSGDSolver(const string& param_file_or_param_txt_serialized, bool isFile=true) {
+		if(isFile){
+			// as in CaffeNet, (as a convenience, not a guarantee), create a Python
+			// exception if param_file can't be opened
+			CheckFile(param_file_or_param_txt_serialized);
+			solver_.reset(new SGDSolver<float>(param_file_or_param_txt_serialized));
+		}else{
+			SolverParameter param;
+			google::protobuf::TextFormat::ParseFromString(param_file_or_param_txt_serialized, &param);
+			solver_.reset(new SGDSolver<float>(param));
+		}
+		// we need to explicitly store the net wrapper, rather than constructing
+		// it on the fly, so that it can hold references to Python objects
+		net_.reset(new CaffeNet(solver_->net()));
+	}
 
   shared_ptr<CaffeNet> net() { return net_; }
   void Solve() { return solver_->Solve(); }
@@ -302,6 +389,11 @@ class CaffeSGDSolver {
     CheckFile(resume_file);
     return solver_->Solve(resume_file);
   }
+
+  void snapshot(const string& filename){
+    solver_->Snapshot(filename);
+  }
+
 
  protected:
   shared_ptr<CaffeNet> net_;
@@ -316,6 +408,7 @@ BOOST_PYTHON_MODULE(_caffe) {
   boost::python::class_<CaffeNet, shared_ptr<CaffeNet> >(
       "Net", boost::python::init<string, string>())
       .def(boost::python::init<string>())
+      .def(boost::python::init<string,string,bool>())
       .def("_forward",              &CaffeNet::Forward)
       .def("_backward",             &CaffeNet::Backward)
       .def("set_mode_cpu",          &CaffeNet::set_mode_cpu)
@@ -332,6 +425,7 @@ BOOST_PYTHON_MODULE(_caffe) {
       .add_property("raw_scale",    &CaffeNet::raw_scale_)
       .add_property("channel_swap", &CaffeNet::channel_swap_)
       .def("_set_input_arrays",     &CaffeNet::set_input_arrays)
+      .def("_set_input_sparse_arrays", &CaffeNet::set_input_sparse_arrays)
       .def("save",                  &CaffeNet::save);
 
   boost::python::class_<CaffeBlob, CaffeBlobWrap>(
@@ -352,9 +446,11 @@ BOOST_PYTHON_MODULE(_caffe) {
 
   boost::python::class_<CaffeSGDSolver, boost::noncopyable>(
       "SGDSolver", boost::python::init<string>())
+      .def(boost::python::init<string,bool>())
       .add_property("net", &CaffeSGDSolver::net)
       .def("solve",        &CaffeSGDSolver::Solve)
-      .def("solve",        &CaffeSGDSolver::SolveResume);
+      .def("solve",        &CaffeSGDSolver::SolveResume)
+      .def("snapshot",     &CaffeSGDSolver::snapshot);
 
   boost::python::class_<vector<CaffeBlob> >("BlobVec")
       .def(vector_indexing_suite<vector<CaffeBlob>, true>());

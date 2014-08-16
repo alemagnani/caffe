@@ -216,7 +216,7 @@ message LayerParameter {
   // line above the enum. Update the next available ID when you add a new
   // LayerType.
   //
-  // LayerType next available ID: 37 (last added: DATA_SPARSE_INPUT)
+  // LayerType next available ID: 38 (last added: MEMORY_DATA_SPARSE)
   enum LayerType {
     // "NONE" layer type is 0th enum element so that we don't cause confusion
     // by defaulting to an existent LayerType (instead, should usually error if
@@ -244,6 +244,7 @@ message LayerParameter {
     INNER_PRODUCT = 14;
     LRN = 15;
     MEMORY_DATA = 29;
+    MEMORY_DATA_SPARSE = 37;
     MULTINOMIAL_LOGISTIC_LOSS = 16;
     MVN = 34;
     POOLING = 17;
@@ -297,6 +298,7 @@ message LayerParameter {
   optional InnerProductParameter inner_product_param = 17;
   optional LRNParameter lrn_param = 18;
   optional MemoryDataParameter memory_data_param = 22;
+  optional MemoryDataSparseParameter memory_data_sparse_param = 37;
   optional PoolingParameter pooling_param = 19;
   optional PowerParameter power_param = 21;
   optional ReLUParameter relu_param = 30;
@@ -398,6 +400,19 @@ message DataParameter {
   // DEPRECATED. See TransformParameter. Specify if we want to randomly mirror
   // data.
   optional bool mirror = 6 [default = false];
+}
+
+// Message that stores parameters used by DataLayeSparseInput
+message DataSparseInputParameter {
+  // Specify the data source.
+  optional string source = 1;
+  // Specify the batch size. Size is the number of columns in the data.
+  optional uint32 batch_size = 2;
+  // The rand_skip variable is for the data layer to skip a few data points
+  // to avoid all asynchronous sgd clients to start at the same point. The skip
+  // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
+  // be larger than the number of keys in the leveldb.
+  optional uint32 rand_skip = 3 [default = 0];
 }
 
 // Message that stores parameters used by DataLayeSparseInput
@@ -536,6 +551,13 @@ message MemoryDataParameter {
   optional uint32 channels = 2;
   optional uint32 height = 3;
   optional uint32 width = 4;
+}
+
+// Message that stores parameters used by MemoryDataSparseLayer
+message MemoryDataSparseParameter {
+  optional uint32 batch_size = 1;
+  //This parameter is the number of columns in the data.
+  optional uint32 size = 2; 
 }
 
 // Message that stores parameters used by MVNLayer

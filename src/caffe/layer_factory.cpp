@@ -64,6 +64,8 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
     return new LRNLayer<Dtype>(param);
   case LayerParameter_LayerType_MEMORY_DATA:
     return new MemoryDataLayer<Dtype>(param);
+  case LayerParameter_LayerType_MEMORY_DATA_SPARSE:
+    return new MemoryDataLayerSparse<Dtype>(param);
   case LayerParameter_LayerType_MVN:
     return new MVNLayer<Dtype>(param);
   case LayerParameter_LayerType_MULTINOMIAL_LOGISTIC_LOSS:
@@ -107,6 +109,12 @@ Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos) {
       if (pos == 0) {
         return new SparseBlob<Dtype>();
       } else {
+        return new Blob<Dtype>();
+      }
+    case LayerParameter_LayerType_MEMORY_DATA_SPARSE:
+      if (pos == 0){
+        return new SparseBlob<Dtype>();
+      }else{
         return new Blob<Dtype>();
       }
     default:
