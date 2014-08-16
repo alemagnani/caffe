@@ -3,8 +3,11 @@
 
 #include <string>
 
+#include "caffe/blob.hpp"
+#include "caffe/common.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/sparse_blob.hpp"
 #include "caffe/vision_layers.hpp"
 
 namespace caffe {
@@ -31,6 +34,8 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
     return new ConvolutionLayer<Dtype>(param);
   case LayerParameter_LayerType_DATA:
     return new DataLayer<Dtype>(param);
+  case LayerParameter_LayerType_DATA_SPARSE_INPUT:
+      return new DataLayerSparseInput<Dtype>(param);
   case LayerParameter_LayerType_DROPOUT:
     return new DropoutLayer<Dtype>(param);
   case LayerParameter_LayerType_DUMMY_DATA:
@@ -94,8 +99,30 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
   return (Layer<Dtype>*)(NULL);
 }
 
+template<typename Dtype>
+Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos) {
+  const LayerParameter_LayerType& type = param->type();
+  switch (type) {
+    case LayerParameter_LayerType_DATA_SPARSE_INPUT:
+      if (pos == 0) {
+        return new SparseBlob<Dtype>();
+      } else {
+        return new Blob<Dtype>();
+      }
+    default:
+      return new Blob<Dtype>();
+  }
+  // just to suppress old compiler warnings.
+  return new Blob<Dtype>();
+}
+
 template Layer<float>* GetLayer(const LayerParameter& param);
 template Layer<double>* GetLayer(const LayerParameter& param);
+
+template Blob<float>* GetTopBlob(const shared_ptr<LayerParameter>& param,
+                                 int pos);
+template Blob<double>* GetTopBlob(const shared_ptr<LayerParameter>& param,
+                                  int pos);
 
 }  // namespace caffe
 

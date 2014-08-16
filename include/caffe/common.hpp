@@ -4,6 +4,7 @@
 #include <boost/shared_ptr.hpp>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <algorithm>
 
 #include <cmath>
 #include <map>
@@ -52,6 +53,14 @@ private:\
     CHECK_EQ(status, CUBLAS_STATUS_SUCCESS) << " " \
       << caffe::cublasGetErrorString(status); \
   } while (0)
+
+#define CUSPARSE_CHECK(condition) \
+  do { \
+    cusparseStatus_t status = condition; \
+    CHECK_EQ(status, CUSPARSE_STATUS_SUCCESS) << " " \
+      << caffe::cusparseGetErrorString(status); \
+  } while (0)
+
 
 #define CURAND_CHECK(condition) \
   do { \
@@ -132,6 +141,12 @@ class Caffe {
   }
 #ifndef CPU_ONLY
   inline static cublasHandle_t cublas_handle() { return Get().cublas_handle_; }
+  inline static cusparseHandle_t cusparse_handle() {
+    return Get().cusparse_handle_;
+  }
+  inline static cusparseMatDescr_t cusparse_mat_descr() {
+    return Get().cusparse_mat_descr_;
+  }
   inline static curandGenerator_t curand_generator() {
     return Get().curand_generator_;
   }
@@ -160,6 +175,8 @@ class Caffe {
  protected:
 #ifndef CPU_ONLY
   cublasHandle_t cublas_handle_;
+  cusparseHandle_t cusparse_handle_;
+  cusparseMatDescr_t cusparse_mat_descr_;
   curandGenerator_t curand_generator_;
 #endif
   shared_ptr<RNG> random_generator_;
@@ -179,6 +196,7 @@ class Caffe {
 
 // NVIDIA_CUDA-5.5_Samples/common/inc/helper_cuda.h
 const char* cublasGetErrorString(cublasStatus_t error);
+const char* cusparseGetErrorString(cusparseStatus_t error);
 const char* curandGetErrorString(curandStatus_t error);
 
 // CUDA: thread number configuration.

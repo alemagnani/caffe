@@ -172,6 +172,18 @@ class InnerProductLayer : public Layer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
+  // used to support the sparse operation
+  void Forward_sparse_cpu(const SparseBlob<Dtype>* bottom,
+                          vector<Blob<Dtype>*>* top);
+  void Forward_sparse_gpu(const SparseBlob<Dtype>* bottom,
+                          vector<Blob<Dtype>*>* top);
+  void Backward_sparse_cpu(const vector<Blob<Dtype>*>& top,
+                           const bool propagate_down,
+                           const SparseBlob<Dtype>* bottom);
+  void Backward_sparse_gpu(const vector<Blob<Dtype>*>& top,
+                           const bool propagate_down,
+                           const SparseBlob<Dtype>* bottom);
+
   int M_;
   int K_;
   int N_;
