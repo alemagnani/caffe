@@ -17,6 +17,7 @@
 #include "caffe/internal_thread.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/sparse_blob.hpp"
 
 namespace caffe {
 
@@ -120,6 +121,55 @@ class DataLayer : public BasePrefetchingDataLayer<Dtype> {
   MDB_txn* mdb_txn_;
   MDB_cursor* mdb_cursor_;
   MDB_val mdb_key_, mdb_value_;
+};
+
+template<typename Dtype>
+void* DataLayerSparseInputPrefetch(void* layer_pointer);
+
+template<typename Dtype>
+class DataLayerSparseInput : public Layer<Dtype> {
+  // The function used to perform prefetching.
+  friend void* DataLayerSparseInputPrefetch<Dtype>(void* layer_pointer);
+
+ public:
+  explicit DataLayerSparseInput(const LayerParameter& param)
+      : Layer<Dtype>(param) {
+  }
+  virtual ~DataLayerSparseInput();
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+                     vector<Blob<Dtype>*>* top);
+
+ protected:
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+                           vector<Blob<Dtype>*>* top);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+                           vector<Blob<Dtype>*>* top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+                            const vector<bool>& propagate_down,
+                            vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+                            const vector<bool>& propagate_down,
+                            vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
+
+  virtual void CreatePrefetchThread();
+  virtual void JoinPrefetchThread();
+
+  shared_ptr<leveldb::DB> db_;
+  shared_ptr<leveldb::Iterator> iter_;
+  int datum_size_;
+
+  pthread_t thread_;
+  shared_ptr<SparseBlob<Dtype> > prefetch_data_;
+  shared_ptr<SparseBlob<Dtype> > prefetch_data_copy_;
+  shared_ptr<Blob<Dtype> > prefetch_label_;
+  shared_ptr<Blob<Dtype> > prefetch_label_copy_;
+
+  bool output_labels_;
+  Caffe::Phase phase_;
 };
 
 /**
