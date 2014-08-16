@@ -3,8 +3,12 @@
 #include <climits>
 #include <cmath>  // for std::fabs
 #include <cstdlib>  // for rand_r
+<<<<<<< HEAD
 #include <vector>
+=======
+>>>>>>> added python support for sparse data, added new in memory data layer for sparse data
 #include "gtest/gtest.h"
+#include <vector>
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
@@ -264,6 +268,7 @@ class CsrFunctionsGenTest : public ::testing::Test {
     ptr_.reset(new SyncedMemory(ptr_size * sizeof(int)));
     B_.reset(new SyncedMemory(K * N * sizeof(Dtype)));
     C_.reset(new SyncedMemory(M * N * sizeof(Dtype)));
+<<<<<<< HEAD
   }
 
   virtual void run(bool isCpu, int times = 1) {
@@ -407,6 +412,143 @@ class CsrFunctionsGenTest : public ::testing::Test {
     for (int pos = 0; pos < size; pos++) {
       X[pos] = static_cast<Dtype>(caffe_rng_rand()) /
           static_cast<Dtype>(RAND_MAX);
+=======
+  }
+
+  virtual void run(bool isCpu, int times=1) {
+    if (isCpu) {
+      Timer timer;
+      timer.Start();
+      for (int t=0; t<times; t++){
+        caffe_cpu_csr_gemm(TransA, TransB, M, N, K, alpha, NZZ, cpu_A(),
+                         cpu_indices(), cpu_ptr(), cpu_B(), beta, cpu_C(),
+                         orderC);
+      }
+      std::cout << "Total Time for CSR CPU gemm M:" << M << " N: "<< N <<" K: "
+                << K << " transA: " <<TransA << " transB: "<< TransB
+                << " orderC: "<< orderC << " equal to "<< (timer.MilliSeconds()/times)
+                << " milli seconds.. Time per M ops: " << timer.MilliSeconds()/(times * NZZ * N/1e6)  <<" milli seconds\n";
+    } else {
+#ifndef CPU_ONLY
+      Dtype*  agpu = gpu_A();
+      int* indicesgpu = gpu_indices();
+      int* ptrgpu = gpu_ptr();
+      Dtype* bgpu = gpu_B();
+      Dtype* cgpu = gpu_C();
+      Timer timer;
+      timer.Start();
+      for (int t=0; t<times; t++){
+        caffe_gpu_csr_gemm(TransA, TransB, M, N, K, alpha, NZZ, agpu,
+                         indicesgpu, ptrgpu, bgpu, beta, cgpu,
+                         orderC);
+      }
+      std::cout << "Total Time for CSR GPU gemm M:" << M << " N: "<< N <<" K: "
+          << K << " transA: " << TransA << " transB: "<< TransB
+          << " orderC: "<< orderC << " equal to "<< (timer.MilliSeconds()/times)
+          << " milli seconds. Time per M ops: " << timer.MilliSeconds()/(times * NZZ * N/1e6)  <<" milli seconds\n";
+#else
+
+#endif
+    }
+  }
+
+  void setA(Dtype A_data[], int A_indices[], int A_ptr[]) {
+    Dtype* am = cpu_A();
+    int* aindices = cpu_indices();
+    int* aptr = cpu_ptr();
+
+    for (int i = 0; i < NZZ; i++) {
+      am[i] = A_data[i];
+      aindices[i] = A_indices[i];
+    }
+    for (int i = 0; i < PTR_SIZE; i++) {
+      aptr[i] = A_ptr[i];
+    }
+  }
+
+  void setB(Dtype B_data[]) {
+    Dtype* bm = cpu_B();
+    for (int i = 0; i < (K * N); i++) {
+      bm[i] = B_data[i];
+    }
+  }
+  void setC(Dtype C_data[]) {
+    Dtype* cm = cpu_C();
+    for (int i = 0; i < (M * N); i++) {
+      cm[i] = C_data[i];
+    }
+  }
+  void checkC(Dtype C_check[]) {
+    Dtype* cm = cpu_C();
+    for (int i = 0; i < (M * N); i++) {
+      EXPECT_EQ(cm[i], C_check[i]);
+    }
+  }
+
+  Dtype* cpu_A() {
+    CHECK(A_);
+    return reinterpret_cast<Dtype*>(A_->mutable_cpu_data());
+  }
+  Dtype* gpu_A() {
+    CHECK(A_);
+    return reinterpret_cast<Dtype*>(A_->mutable_gpu_data());
+  }
+
+  Dtype* cpu_B() {
+    CHECK(B_);
+    return reinterpret_cast<Dtype*>(B_->mutable_cpu_data());
+  }
+  Dtype* gpu_B() {
+    CHECK(B_);
+    return reinterpret_cast<Dtype*>(B_->mutable_gpu_data());
+  }
+
+  Dtype* cpu_C() {
+    CHECK(C_);
+    return reinterpret_cast<Dtype*>(C_->mutable_cpu_data());
+  }
+  Dtype* gpu_C() {
+    CHECK(C_);
+    return reinterpret_cast<Dtype*>(C_->mutable_gpu_data());
+  }
+
+  int* cpu_indices() {
+    CHECK(indices_);
+    return reinterpret_cast<int*>(indices_->mutable_cpu_data());
+  }
+  int* gpu_indices() {
+    CHECK(indices_);
+    return reinterpret_cast<int*>(indices_->mutable_gpu_data());
+  }
+
+  int* cpu_ptr() {
+    CHECK(ptr_);
+    return reinterpret_cast<int*>(ptr_->mutable_cpu_data());
+  }
+  int* gpu_ptr() {
+    CHECK(ptr_);
+    return reinterpret_cast<int*>(ptr_->mutable_gpu_data());
+  }
+
+  void random_csr(int M, int N, int nzz_per_row, Dtype* A, int* indices,
+                  int* ptr) {
+    srand(0);
+    ptr[0] = 0;
+    for (int row = 0; row < M; row++) {
+      ptr[row+1] = nzz_per_row * (row+1);
+      for (int pos = 0; pos < nzz_per_row; pos++) {
+        int col = rand() % N;
+        indices[row * nzz_per_row + pos] = col;
+        A[row * nzz_per_row + pos] = static_cast <Dtype> (rand()) / static_cast <Dtype> (RAND_MAX);
+      }
+    }
+  }
+
+  void random_fill(int size, Dtype* X) {
+    srand(0);
+    for (int pos=0; pos < size; pos++){
+      X[pos] = static_cast <Dtype> (rand()) / static_cast <Dtype> (RAND_MAX);
+>>>>>>> added python support for sparse data, added new in memory data layer for sparse data
     }
   }
 
@@ -910,8 +1052,5 @@ for (int ba = 0; ba < batch_size.size(); ba++) {
   }
 }
 }
-
-
-
 
 }  // namespace caffe

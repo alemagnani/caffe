@@ -79,7 +79,7 @@ DataLayerSparseInput<Dtype>::~DataLayerSparseInput<Dtype>() {
 }
 
 template<typename Dtype>
-void DataLayerSparseInput<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
+void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
                                         vector<Blob<Dtype>*>* top) {
   CHECK_EQ(bottom.size(), 0)<< "Data Layer takes no input blobs.";
   CHECK_GE(top->size(), 1) << "Data Layer takes at least one blob as output.";

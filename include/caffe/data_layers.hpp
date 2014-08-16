@@ -94,7 +94,7 @@ class DataLayerSparseInput : public Layer<Dtype> {
       : Layer<Dtype>(param) {
   }
   virtual ~DataLayerSparseInput();
-  virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
                      vector<Blob<Dtype>*>* top);
 
  protected:
@@ -312,6 +312,44 @@ class MemoryDataLayer : public Layer<Dtype> {
   int batch_size_;
   int n_;
   int pos_;
+};
+
+template <typename Dtype>
+class MemoryDataLayerSparse : public Layer<Dtype>{
+public:
+	explicit MemoryDataLayerSparse(const LayerParameter& param)
+	: Layer<Dtype>(param), blob_(), labels_() {}
+
+	virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+			vector<Blob<Dtype>*>* top);
+
+	// Reset should accept const pointers, but can't, because the memory
+	//  will be given to Blob, which is mutable
+	void Reset(Dtype* data, int* indices, int* ptr,  Dtype* label, int rows, int cols);
+
+	int datum_size() { return datum_size_; }
+	int batch_size() { return batch_size_; }
+
+	 Dtype* cpu_labels() const;
+	 Dtype* gpu_labels() const;
+
+protected:
+		virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+				vector<Blob<Dtype>*>* top);
+		virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+				vector<Blob<Dtype>*>* top);
+		virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+				const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return; }
+		virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+				const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom){return; }
+
+	shared_ptr<SparseBlob<Dtype> > blob_;
+	shared_ptr<SyncedMemory> labels_;
+
+	int datum_size_;
+	int batch_size_;
+	int rows_;
+	int pos_;
 };
 
 template <typename Dtype>

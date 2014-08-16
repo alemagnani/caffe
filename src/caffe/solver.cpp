@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <glog/logging.h>
+
 #include "caffe/net.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/solver.hpp"
@@ -325,6 +327,20 @@ void Solver<Dtype>::Snapshot() {
   filename += ".solverstate";
   LOG(INFO) << "Snapshotting solver state to " << filename;
   WriteProtoToBinaryFile(state, filename.c_str());
+}
+
+template <typename Dtype>
+void Solver<Dtype>::Snapshot(const string& filename) {
+        NetParameter net_param;
+        // For intermediate results, we will also dump the gradient values.
+        net_->ToProto(&net_param, param_.snapshot_diff());
+
+        const int kBufferSize = 20;
+        char iter_str_buffer[kBufferSize];
+        snprintf(iter_str_buffer, kBufferSize, "_iter_%d", iter_);
+
+        LOG(INFO) << "Snapshotting to " << filename;
+        WriteProtoToBinaryFile(net_param, filename.c_str());
 }
 
 template <typename Dtype>
