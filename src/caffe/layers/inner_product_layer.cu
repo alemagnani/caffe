@@ -12,6 +12,10 @@ namespace caffe {
 template <typename Dtype>
 void InnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     vector<Blob<Dtype>*>* top) {
+  if (SparseBlob<Dtype> * sparseBlob =
+      dynamic_cast<SparseBlob<Dtype>*>(bottom[0])) {
+    return Forward_sparse_gpu(sparseBlob, top);
+  }
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = (*top)[0]->mutable_gpu_data();
   const Dtype* weight = this->blobs_[0]->gpu_data();
@@ -28,6 +32,10 @@ template <typename Dtype>
 void InnerProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     vector<Blob<Dtype>*>* bottom) {
+  if (SparseBlob<Dtype> * sparseBlob =
+      dynamic_cast<SparseBlob<Dtype>*>((*bottom)[0])) {
+    return Backward_sparse_gpu(top, propagate_down[0], sparseBlob);
+  }
   if (this->param_propagate_down_[0]) {
     const Dtype* top_diff = top[0]->gpu_diff();
     const Dtype* bottom_data = (*bottom)[0]->gpu_data();

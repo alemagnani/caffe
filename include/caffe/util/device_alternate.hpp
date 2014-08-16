@@ -35,6 +35,7 @@ void classname<Dtype>::funcname##_##gpu(const vector<Blob<Dtype>*>& top, \
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <curand.h>
+#include <cusparse_v2.h>
 #include <driver_types.h>  // cuda driver types
 
 #endif  // CPU_ONLY
