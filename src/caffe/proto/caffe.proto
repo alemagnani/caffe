@@ -415,19 +415,6 @@ message DataSparseInputParameter {
   optional uint32 rand_skip = 3 [default = 0];
 }
 
-// Message that stores parameters used by DataLayeSparseInput
-message DataSparseInputParameter {
-  // Specify the data source.
-  optional string source = 1;
-  // Specify the batch size. Size is the number of columns in the data.
-  optional uint32 batch_size = 2;
-  // The rand_skip variable is for the data layer to skip a few data points
-  // to avoid all asynchronous sgd clients to start at the same point. The skip
-  // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
-  // be larger than the number of keys in the leveldb.
-  optional uint32 rand_skip = 3 [default = 0];
-}
-
 // Message that stores parameters used by DropoutLayer
 message DropoutParameter {
   optional float dropout_ratio = 1 [default = 0.5]; // dropout ratio
