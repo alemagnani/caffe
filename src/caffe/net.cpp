@@ -36,8 +36,8 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   // the current NetState.
   NetParameter filtered_param;
   FilterNet(in_param, &filtered_param);
-  LOG(INFO) << "Initializing net from parameters: " << std::endl
-            << filtered_param.DebugString();
+  //LOG(INFO) << "Initializing net from parameters: " << std::endl
+  //          << filtered_param.DebugString();
   // Create a copy of filtered_param with splits added where necessary.
   NetParameter param;
   InsertSplits(filtered_param, &param);
