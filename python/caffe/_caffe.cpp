@@ -164,7 +164,9 @@ struct CaffeNet {
   }
 
 
-  virtual ~CaffeNet() {}
+  virtual ~CaffeNet() {
+
+  }
 
   // Generate Python exceptions for badly shaped or discontiguou  
   void InitTextProto(string& proto_text) {
