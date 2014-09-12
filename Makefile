@@ -237,7 +237,7 @@ endif
 
 # Debugging
 ifeq ($(DEBUG), 1)
-	COMMON_FLAGS += -DDEBUG -g -O0
+	COMMON_FLAGS += -DDEBUG -g -pg -O0
 else
 	COMMON_FLAGS += -DNDEBUG -O2
 endif

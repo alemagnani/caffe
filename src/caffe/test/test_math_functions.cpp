@@ -295,6 +295,7 @@ class CsrFunctionsGenTest : public ::testing::Test {
         caffe_gpu_csr_gemm(TransA, TransB, M, N, K, alpha, NZZ, agpu,
                            indicesgpu, ptrgpu, bgpu, beta, cgpu, orderC);
       }
+      cudaDeviceSynchronize();
       std::cout << "Total Time for CSR GPU gemm M:" << M << " N: " << N
           << " K: " << K << " transA: " << TransA << " transB: " << TransB
           << " orderC: " << orderC << " equal to "
@@ -859,6 +860,7 @@ this->checkC(CCheck);
 #endif
 }
 
+/*
 TYPED_TEST(CsrFunctionsGenTest, TestCsrGemmSpeedForward) {
 std::vector<int> batch_size;
 std::vector<int> features;
@@ -884,6 +886,7 @@ for (int ba = 0; ba < batch_size.size(); ba++) {
   }
 }
 }
+*/
 
 TYPED_TEST(CsrFunctionsGenTest, TestCsrGemmSpeedBackward) {
 std::vector<int> batch_size;
@@ -892,8 +895,8 @@ std::vector<int> nzz_per_row;
 std::vector<int> classes;
 
 batch_size.push_back(64);
-batch_size.push_back(128);
-features.push_back(10000);
+//batch_size.push_back(128);
+features.push_back(50000);
 nzz_per_row.push_back(200);
 classes.push_back(2);
 classes.push_back(10);

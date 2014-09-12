@@ -256,16 +256,25 @@ struct CaffeNet {
     if (PyArray_TYPE(data_arr) != NPY_FLOAT32) {
       throw std::runtime_error("data in sparse must be float32");
     }
+    if (!(PyArray_FLAGS(data_arr) & NPY_ARRAY_C_CONTIGUOUS)) {
+          throw std::runtime_error("data must be C contiguous");
+     }
     PyArrayObject* indices_arr =
         reinterpret_cast<PyArrayObject*>(indices_obj.ptr());
     if (PyArray_TYPE(indices_arr) != NPY_INT32) {
       throw std::runtime_error("indices in sparse must be int32");
     }
+    if (!(PyArray_FLAGS(indices_arr) & NPY_ARRAY_C_CONTIGUOUS)) {
+              throw std::runtime_error("indices must be C contiguous");
+         }
     PyArrayObject* ptr_arr =
         reinterpret_cast<PyArrayObject*>(ptr_obj.ptr());
     if (PyArray_TYPE(ptr_arr) != NPY_INT32) {
       throw std::runtime_error("ptr in sparse must be int32");
     }
+    if (!(PyArray_FLAGS(ptr_arr) & NPY_ARRAY_C_CONTIGUOUS)) {
+                  throw std::runtime_error("ptr must be C contiguous");
+     }
 
     PyArrayObject* labels_arr =
         reinterpret_cast<PyArrayObject*>(labels_obj.ptr());

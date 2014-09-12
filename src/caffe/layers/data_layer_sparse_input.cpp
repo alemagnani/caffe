@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "caffe/common.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -21,7 +22,7 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
   DataLayerSparseInput<Dtype>* layer =
       static_cast<DataLayerSparseInput<Dtype>*>(layer_pointer);
   CHECK(layer);
-  vector<SparseDatum> datums;
+  vector<shared_ptr<SparseDatum> > datums;
   CHECK(layer->prefetch_data_);
 
   Dtype* top_label = NULL;  // suppress warnings about uninitialized variables
@@ -36,11 +37,12 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     CHECK(layer->iter_);
     CHECK(layer->iter_->Valid());
-    SparseDatum datum;
-    datum.ParseFromString(layer->iter_->value().ToString());
+    shared_ptr<SparseDatum> datum(new SparseDatum());
+
+    datum->ParseFromString(layer->iter_->value().ToString());
     datums.push_back(datum);
     if (layer->output_labels_) {
-      top_label[item_id] = datum.label();
+      top_label[item_id] = datum->label();
     }
     // go to the next iter
     layer->iter_->Next();
@@ -51,7 +53,7 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
   }
   int nn = 0;
   for (int i = 0; i < batch_size; i++) {
-    nn += datums[i].nn();
+    nn += datums[i]->nn();
   }
   layer->prefetch_data_->Reshape(batch_size, size, nn);
 
@@ -62,12 +64,12 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
   ptr[0] = 0;
   int pos = 0;
   for (int i = 0; i < batch_size; i++) {
-    SparseDatum d = datums[i];
-    for (int k = 0; k < d.nn(); k++) {
-      top_data[k + pos] = d.data(k);
-      indices[k + pos] = d.indices(k);
+    shared_ptr<SparseDatum> d = datums[i];
+    for (int k = 0; k < d->nn(); k++) {
+      top_data[k + pos] = d->data(k);
+      indices[k + pos] = d->indices(k);
     }
-    pos += d.nn();
+    pos += d->nn();
     ptr[i + 1] = pos;
   }
   return static_cast<void*>(NULL);
