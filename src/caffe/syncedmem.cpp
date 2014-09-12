@@ -7,7 +7,6 @@
 namespace caffe {
 
 SyncedMemory::~SyncedMemory() {
-  LOG(INFO) << "deleting memory of size "<< size_;
   clear_data();
 }
 
@@ -15,7 +14,6 @@ inline void SyncedMemory::to_cpu() {
   switch (head_) {
   case UNINITIALIZED:
     CaffeMallocHost(&cpu_ptr_, size_);
-    LOG(INFO) << "allocating cpu  memory of size "<< size_ << " at " << cpu_ptr_;
     caffe_memset(size_, 0, cpu_ptr_);
     head_ = HEAD_AT_CPU;
     own_cpu_data_ = true;
@@ -24,7 +22,6 @@ inline void SyncedMemory::to_cpu() {
 #ifndef CPU_ONLY
     if (cpu_ptr_ == NULL) {
       CaffeMallocHost(&cpu_ptr_, size_);
-      LOG(INFO) << "allocating cpu  memory of size "<< size_ << " at " << cpu_ptr_;
       own_cpu_data_ = true;
     }
     caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
@@ -67,13 +64,11 @@ inline void SyncedMemory::to_gpu() {
 
 void SyncedMemory::clear_data() {
   if (cpu_ptr_ && own_cpu_data_) {
-    LOG(INFO) << "deleting scpu  memory of size "<< size_ << " at " << cpu_ptr_;
     CaffeFreeHost(cpu_ptr_);
     cpu_ptr_ = NULL;
   }
 #ifndef CPU_ONLY
   if (gpu_ptr_ && own_gpu_data_) {
-    LOG(INFO) << "clearing gpu memory of size "<< size_ << " at " << gpu_ptr_;
     CUDA_CHECK(cudaFree(gpu_ptr_));
     gpu_ptr_ = NULL;
   }

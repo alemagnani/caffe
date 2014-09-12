@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "caffe/common.hpp"
+#include "caffe/syncedmem.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
 
@@ -40,33 +41,28 @@ void caffe_cpu_csr_gemm(const CBLAS_TRANSPOSE TransA,
                         const CBLAS_ORDER orderC) {
   if (TransA == CblasNoTrans) {  // CSR
     caffe_scal(M * N, beta, C);
-    Dtype Crow_tmp[N];
     if (orderC == CblasRowMajor) {
       if (TransB == CblasNoTrans) {
         for (int rowA = 0; rowA < M; rowA++) {
           const int begin = ptr[rowA];
           const int end = ptr[rowA + 1];
-          caffe_scal(N, (Dtype) 0.0, Crow_tmp);
+          Dtype* CrowA = C + (N * rowA);
           for (int pos = begin; pos < end; pos++) {
             const Dtype* BcolAN = B + (indices[pos] * N);
-            const Dtype AatPos = A[pos];
-            caffe_axpy(N, AatPos, BcolAN, Crow_tmp, 1, 1);
+            const Dtype AatPos = alpha * A[pos];
+            caffe_axpy(N, AatPos, BcolAN, CrowA, 1, 1);
           }
-          Dtype* CrowA = C + (N * rowA);
-          caffe_axpy(N, alpha, Crow_tmp, CrowA, 1, 1);
         }
       } else {
         for (int rowA = 0; rowA < M; rowA++) {
           const int begin = ptr[rowA];
           const int end = ptr[rowA + 1];
-          caffe_scal(N, (Dtype) 0.0, Crow_tmp);
-          for (int pos = begin; pos < end; pos++) {
-            const Dtype AatPos = A[pos];
-            const Dtype* BcolA = B + indices[pos];
-            caffe_axpy(N, AatPos, BcolA, Crow_tmp, K, 1);
-          }
           Dtype* CrowA = C + (N * rowA);
-          caffe_axpy(N, alpha, Crow_tmp, CrowA, 1, 1);
+          for (int pos = begin; pos < end; pos++) {
+            const Dtype AatPos = alpha * A[pos];
+            const Dtype* BcolA = B + indices[pos];
+            caffe_axpy(N, AatPos, BcolA, CrowA, K, 1);
+          }
         }
       }
     } else {
@@ -74,33 +70,28 @@ void caffe_cpu_csr_gemm(const CBLAS_TRANSPOSE TransA,
         for (int rowA = 0; rowA < M; rowA++) {
           const int begin = ptr[rowA];
           const int end = ptr[rowA + 1];
-          caffe_scal(N, (Dtype) 0.0, Crow_tmp);
+          Dtype* CrowA = C + rowA;
           for (int pos = begin; pos < end; pos++) {
             const Dtype* BcolAN = B + (indices[pos] * N);
-            const Dtype AatPos = A[pos];
-            caffe_axpy(N, AatPos, BcolAN, Crow_tmp, 1, 1);
+            const Dtype AatPos = alpha * A[pos];
+            caffe_axpy(N, AatPos, BcolAN, CrowA, 1, M);
           }
-          Dtype* CrowA = C + rowA;
-          caffe_axpy(N, alpha, Crow_tmp, CrowA, 1, M);
         }
       } else {
         for (int rowA = 0; rowA < M; rowA++) {
           const int begin = ptr[rowA];
           const int end = ptr[rowA + 1];
-          caffe_scal(N, (Dtype) 0.0, Crow_tmp);
+          Dtype* CrowA = C + rowA;
           for (int pos = begin; pos < end; pos++) {
             const Dtype* BcolA = B + indices[pos];
-            const Dtype AatPos = A[pos];
-            caffe_axpy(N, AatPos, BcolA, Crow_tmp, K, 1);
+            const Dtype AatPos = alpha * A[pos];
+            caffe_axpy(N, AatPos, BcolA, CrowA, K, M);
           }
-          Dtype* CrowA = C + rowA;
-          caffe_axpy(N, alpha, Crow_tmp, CrowA, 1, M);
         }
       }
     }
   } else {  // A is CSC
     caffe_scal(M * N, beta, C);
-
     if (orderC == CblasRowMajor) {
       if (TransB == CblasNoTrans) {
         for (int colA = 0; colA < K; colA++) {

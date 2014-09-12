@@ -501,14 +501,82 @@ __device__ void caffe_gpu_csr_rank1_update_kernel_core(const int M, const int N,
                                                        const int ldc2) {
   const int begin = ptr[0];
   const int end = ptr[1];
-  for (int pos = blockIdx.x * blockDim.x + begin + threadIdx.x; pos < end;
-      pos += blockDim.x * gridDim.x) {
-    const Dtype valA = A[pos] * alpha;
-    const int offset_part = indices[pos] * ldc1;
-    for (int colC = blockIdx.y * blockDim.y + threadIdx.y; colC < N;
-        colC += blockDim.y * gridDim.y) {
-      const int C_offset = offset_part + colC * ldc2;
-      C[C_offset] = C[C_offset] + B[colC * ldb] * valA;
+  if (ldb == 1) {
+    if (ldc1 == 1) {
+      for (int pos = blockIdx.x * blockDim.x + begin + threadIdx.x; pos < end;
+          pos += blockDim.x * gridDim.x) {
+        const Dtype valA = A[pos] * alpha;
+        const int offset_part = indices[pos];
+        Dtype* C_off = C + offset_part;
+        for (int colC = blockIdx.y * blockDim.y + threadIdx.y; colC < N;
+            colC += blockDim.y * gridDim.y) {
+          const int C_offset = colC * ldc2;
+          C_off[C_offset] = C_off[C_offset] + B[colC] * valA;
+        }
+      }
+    } else if (ldc2 == 1) {
+      for (int pos = blockIdx.x * blockDim.x + begin + threadIdx.x; pos < end;
+          pos += blockDim.x * gridDim.x) {
+        const Dtype valA = A[pos] * alpha;
+        const int offset_part = indices[pos] * ldc1;
+        Dtype* C_off = C + offset_part;
+        for (int colC = blockIdx.y * blockDim.y + threadIdx.y; colC < N;
+            colC += blockDim.y * gridDim.y) {
+          const int C_offset = colC;
+          C_off[C_offset] = C_off[C_offset] + B[colC] * valA;
+        }
+      }
+    } else {
+      for (int pos = blockIdx.x * blockDim.x + begin + threadIdx.x; pos < end;
+          pos += blockDim.x * gridDim.x) {
+        const Dtype valA = A[pos] * alpha;
+        const int offset_part = indices[pos] * ldc1;
+        Dtype* C_off = C + offset_part;
+        for (int colC = blockIdx.y * blockDim.y + threadIdx.y; colC < N;
+            colC += blockDim.y * gridDim.y) {
+          const int C_offset = colC * ldc2;
+          C_off[C_offset] = C_off[C_offset] + B[colC] * valA;
+        }
+      }
+    }
+  } else {
+    if (ldc1 == 1) {
+      for (int pos = blockIdx.x * blockDim.x + begin + threadIdx.x; pos < end;
+          pos += blockDim.x * gridDim.x) {
+        const Dtype valA = A[pos] * alpha;
+        const int offset_part = indices[pos];
+        Dtype* C_off = C + offset_part;
+        for (int colC = blockIdx.y * blockDim.y + threadIdx.y; colC < N;
+            colC += blockDim.y * gridDim.y) {
+          const int C_offset = colC * ldc2;
+          C_off[C_offset] = C_off[C_offset] + B[colC * ldb] * valA;
+        }
+      }
+    } else if (ldc2 == 1) {
+      for (int pos = blockIdx.x * blockDim.x + begin + threadIdx.x; pos < end;
+          pos += blockDim.x * gridDim.x) {
+        const Dtype valA = A[pos] * alpha;
+        const int offset_part = indices[pos] * ldc1;
+        Dtype* C_off = C + offset_part;
+        for (int colC = blockIdx.y * blockDim.y + threadIdx.y; colC < N;
+            colC += blockDim.y * gridDim.y) {
+          const int C_offset = colC;
+          C_off[C_offset] = C_off[C_offset] + B[colC * ldb] * valA;
+        }
+      }
+    } else {
+      for (int pos = blockIdx.x * blockDim.x + begin + threadIdx.x; pos < end;
+          pos += blockDim.x * gridDim.x) {
+        const Dtype valA = A[pos] * alpha;
+        const int offset_part = indices[pos] * ldc1;
+        Dtype* C_off = C + offset_part;
+        for (int colC = blockIdx.y * blockDim.y + threadIdx.y; colC < N;
+            colC += blockDim.y * gridDim.y) {
+          const int C_offset = colC * ldc2;
+          C_off[C_offset] = C_off[C_offset] + B[colC * ldb] * valA;
+        }
+      }
+
     }
   }
 }
@@ -568,7 +636,7 @@ void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
     if (beta != 1.0) {
       CUBLAS_CHECK(cublasSscal(Caffe::cublas_handle() , M * N, &beta, C, 1));
     }
-    const int average_nzz_per_row = nzz/K+1;
+    const int average_nzz_per_row = 2 * nzz/K+1;
     dim3 grids((average_nzz_per_row+64-1)/64, N);
     dim3 threads(64, 1);
     caffe_gpu_csr_rank1_update_kernel_multi<float><< <grids, threads>>>(TransB,

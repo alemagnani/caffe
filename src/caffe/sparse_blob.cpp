@@ -56,6 +56,8 @@ void SparseBlob<Dtype>::ReshapeLike(const Blob<Dtype>& other) {
 template<typename Dtype>
 SparseBlob<Dtype>::SparseBlob(const int num, const int channels,
                               const int nzz) {
+  nzz_ = 0;
+  this->num_ = 0;
   Reshape(num, channels, nzz);
 }
 
