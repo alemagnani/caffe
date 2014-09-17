@@ -84,10 +84,9 @@ class PyNet {
   // create a Net with unallocated parameters (which will not be zero-filled
   // when accessed).
   explicit PyNet(string param_file) { Init(param_file); }
-  PyNet(string param_file, string pretrained_param_file);
+  PyNet(string param_file, string pretrained_param_file, bool isFile=true);
   explicit PyNet(shared_ptr<Net<float> > net)
       : net_(net) {}
-  PyNet(string param_file, string pretrained_param_file, bool isFile=true);
 
   virtual ~PyNet() {}
 
@@ -168,8 +167,7 @@ class PyNet {
 
 class PySGDSolver {
  public:
-  explicit PySGDSolver(const string& param_file);
-  PySGDSolver(const string& param_file_or_param_txt_serialized, bool isFile=true);
+  explicit PySGDSolver(const string& param_file_or_param_txt_serialized, bool isFile=true);
 
   shared_ptr<PyNet> net() { return net_; }
   void Solve() { return solver_->Solve(); }
