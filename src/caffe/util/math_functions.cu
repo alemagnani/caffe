@@ -576,7 +576,6 @@ __device__ void caffe_gpu_csr_rank1_update_kernel_core(const int M, const int N,
           C_off[C_offset] = C_off[C_offset] + B[colC * ldb] * valA;
         }
       }
-
     }
   }
 }
@@ -636,7 +635,7 @@ void caffe_gpu_csr_gemm<float>(const CBLAS_TRANSPOSE TransA,
     if (beta != 1.0) {
       CUBLAS_CHECK(cublasSscal(Caffe::cublas_handle() , M * N, &beta, C, 1));
     }
-    const int average_nzz_per_row = 2 * nzz/K+1;
+    const int average_nzz_per_row = nzz/K+1;
     dim3 grids((average_nzz_per_row+64-1)/64, N);
     dim3 threads(64, 1);
     caffe_gpu_csr_rank1_update_kernel_multi<float><< <grids, threads>>>(TransB,
