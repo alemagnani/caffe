@@ -62,13 +62,7 @@ bp::object PyBlobWrap::get_diff() {
   return bp::object(h);
 }
 
-PyNet::PyNet(string param_file, string pretrained_param_file) {
-  Init(param_file);
-  CheckFile(pretrained_param_file);
-  net_->CopyTrainedLayersFrom(pretrained_param_file);
-}
-
-PyNet(string param_file, string pretrained_param_file, bool isFile=true) {
+PyNet::PyNet(string param_file, string pretrained_param_file, bool isFile) {
     if (isFile){
         Init(param_file);
     }else{
@@ -220,18 +214,7 @@ void PyNet::set_input_sparse_arrays(bp::object data_obj, bp::object indices_obj,
                     rows, cols);
   }
 
-
-PySGDSolver::PySGDSolver(const string& param_file) {
-  // as in PyNet, (as a convenience, not a guarantee), create a Python
-  // exception if param_file can't be opened
-  CheckFile(param_file);
-  solver_.reset(new SGDSolver<float>(param_file));
-  // we need to explicitly store the net wrapper, rather than constructing
-  // it on the fly, so that it can hold references to Python objects
-  net_.reset(new PyNet(solver_->net()));
-}
-
-PySGDSolver::PySGDSolver(const string& param_file_or_param_txt_serialized, bool isFile=true) {
+PySGDSolver::PySGDSolver(const string& param_file_or_param_txt_serialized, bool isFile) {
     if(isFile){
       // as in CaffeNet, (as a convenience, not a guarantee), create a Python
       // exception if param_file can't be opened
@@ -244,7 +227,7 @@ PySGDSolver::PySGDSolver(const string& param_file_or_param_txt_serialized, bool 
     }
     // we need to explicitly store the net wrapper, rather than constructing
     // it on the fly, so that it can hold references to Python objects
-    net_.reset(new CaffeNet(solver_->net()));
+    net_.reset(new PyNet(solver_->net()));
   }
 
 void PySGDSolver::snapshot(const string& filename){
@@ -263,7 +246,7 @@ BOOST_PYTHON_MODULE(_caffe) {
   bp::class_<PyNet, shared_ptr<PyNet> >(
       "Net", bp::init<string, string>())
       .def(bp::init<string>())
-      def(bp::init<string,string,bool>())
+      .def(bp::init<string,string,bool>())
       .def("_forward",              &PyNet::Forward)
       .def("_backward",             &PyNet::Backward)
       .def("set_mode_cpu",          &PyNet::set_mode_cpu)
@@ -282,7 +265,7 @@ BOOST_PYTHON_MODULE(_caffe) {
       .add_property("raw_scale",    &PyNet::raw_scale_)
       .add_property("channel_swap", &PyNet::channel_swap_)
       .def("_set_input_arrays",     &PyNet::set_input_arrays)
-      .def("_set_input_sparse_arrays", &CaffeNet::set_input_sparse_arrays)
+      .def("_set_input_sparse_arrays", &PyNet::set_input_sparse_arrays)
       .def("save",                  &PyNet::save);
 
   bp::class_<PyBlob<float>, PyBlobWrap>(
@@ -306,7 +289,7 @@ BOOST_PYTHON_MODULE(_caffe) {
       .add_property("net", &PySGDSolver::net)
       .def("solve",        &PySGDSolver::Solve)
       .def("solve",        &PySGDSolver::SolveResume)
-      .def("snapshot",     &CaffeSGDSolver::snapshot);
+      .def("snapshot",     &PySGDSolver::snapshot);
 
   bp::class_<vector<PyBlob<float> > >("BlobVec")
       .def(bp::vector_indexing_suite<vector<PyBlob<float> >, true>());
