@@ -1,0 +1,98 @@
+#include <vector>
+
+#include "caffe/blob.hpp"
+#include "caffe/common.hpp"
+#include "caffe/filler.hpp"
+#include "caffe/integer_blob.hpp"
+#include "caffe/layer.hpp"
+#include "caffe/util/math_functions.hpp"
+#include "caffe/vision_layers.hpp"
+
+namespace caffe {
+
+template<typename Dtype>
+void LookupTableLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+                                         vector<Blob<Dtype>*>* top) {
+  N_INDEX_ = this->layer_param_.lookup_table_param().n_index();
+  SIZE_ = this->layer_param_.lookup_table_param().size();
+  // Figure out the dimensions
+  NUM_ = bottom[0]->num();
+  INPUT_SIZE_ = bottom[0]->channels();
+  CHECK_EQ(bottom[0]->height(), 1);
+  CHECK_EQ(bottom[0]->width(), 1);
+
+  (*top)[0]->Reshape(bottom[0]->num(), INPUT_SIZE_, SIZE_, 1);
+  // Check if we need to set up the weights
+  if (this->blobs_.size() > 0) {
+    LOG(INFO)<< "Skipping parameter initialization";
+  } else {
+    this->blobs_.resize(1);
+    // Intialize the weight
+    this->blobs_[0].reset(new Blob<Dtype>(1, 1, N_INDEX_, SIZE_));
+    // fill the weights
+    shared_ptr<Filler<Dtype> > weight_filler(GetFiller<Dtype>(
+            this->layer_param_.lookup_table_param().weight_filler()));
+    weight_filler->Fill(this->blobs_[0].get());
+  }  // parameter initialization
+  this->param_propagate_down_.resize(this->blobs_.size(), true);
+}
+
+template<typename Dtype>
+void LookupTableLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+                                          vector<Blob<Dtype>*>* top) {
+  IntegerBlob<Dtype> * bottomIntegerBlob =
+          dynamic_cast<IntegerBlob<Dtype>*>(bottom[0]);
+  if (bottomIntegerBlob == 0) {
+    LOG(FATAL)<< "the bottom blob is not an instance of IntegerBlob";
+  }
+  const int* bottom_data = bottomIntegerBlob->cpu_indices();
+  Dtype* top_data = (*top)[0]->mutable_cpu_data();
+  const Dtype* weight = this->blobs_[0]->cpu_data();
+
+  for (int i = 0; i < NUM_; i++) {
+    for (int w = 0; w < INPUT_SIZE_; w++) {
+      const int pos = bottom_data[i * INPUT_SIZE_ + w];
+      CHECK_GE(pos, 0);
+      CHECK_LT(pos, N_INDEX_);
+      caffe_copy(SIZE_, weight + pos * SIZE_,
+                 top_data +( i * (INPUT_SIZE_ * SIZE_) + w * SIZE_));
+    }
+  }
+}
+
+template<typename Dtype>
+void LookupTableLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+                                           const vector<bool>& propagate_down,
+                                           vector<Blob<Dtype>*>* bottom) {
+  if (this->param_propagate_down_[0]) {
+    const Dtype* top_diff = top[0]->cpu_diff();
+
+    IntegerBlob<Dtype> * bottomIntegerBlob =
+        dynamic_cast<IntegerBlob<Dtype>*>((*bottom)[0]);
+    if (bottomIntegerBlob == 0) {
+      LOG(FATAL)<< "the bottom blob is not an instance of IntegerBlob";
+    }
+    const int* bottom_data = bottomIntegerBlob->cpu_indices();
+    Dtype* diff = this->blobs_[0]->mutable_cpu_diff();
+    caffe_scal(N_INDEX_ * SIZE_, (Dtype) 0.0, diff);
+    for (int i = 0; i < NUM_; i++) {
+      for (int w = 0; w < INPUT_SIZE_; w++) {
+        const int pos = bottom_data[i * INPUT_SIZE_ + w];
+        CHECK_GE(pos, 0);
+        CHECK_LT(pos, N_INDEX_);
+        caffe_axpy(SIZE_, (Dtype) 1., top_diff +( i * (INPUT_SIZE_ * SIZE_) + w * SIZE_), diff + pos * SIZE_);
+      }
+    }
+  }
+  if (propagate_down[0]) {
+    LOG(FATAL)<< "The LookupTableLayer cannot propagate down";
+  }
+}
+
+#ifdef CPU_ONLY
+STUB_GPU(LookupTableLayer);
+#endif
+
+INSTANTIATE_CLASS(LookupTableLayer);
+
+}  // namespace caffe

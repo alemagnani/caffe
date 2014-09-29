@@ -269,18 +269,6 @@ class InnerProductLayer : public Layer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
-  // used to support the sparse operation
-  void Forward_sparse_cpu(const SparseBlob<Dtype>* bottom,
-                          vector<Blob<Dtype>*>* top);
-  void Forward_sparse_gpu(const SparseBlob<Dtype>* bottom,
-                          vector<Blob<Dtype>*>* top);
-  void Backward_sparse_cpu(const vector<Blob<Dtype>*>& top,
-                           const bool propagate_down,
-                           const SparseBlob<Dtype>* bottom);
-  void Backward_sparse_gpu(const vector<Blob<Dtype>*>& top,
-                           const bool propagate_down,
-                           const SparseBlob<Dtype>* bottom);
-
   int M_;
   int K_;
   int N_;
@@ -517,6 +505,44 @@ class SparseInnerProductLayer : public InnerProductLayer<Dtype> {
                             const vector<bool>& propagate_down,
                             vector<Blob<Dtype>*>* bottom);
 };
+
+/**
+ * @brief LookupTable the input is a vector containing the indices of the vectors to be looked up.
+ *   The output is a concatenation of those vectors. The layer parameter specifies the number of vectors in the table and their size
+ *
+ * TODO(dox): thorough documentation for Forward, Backward, and proto params.
+ */
+template <typename Dtype>
+class LookupTableLayer : public Layer<Dtype> {
+ public:
+  explicit LookupTableLayer(const LayerParameter& param)
+      : Layer<Dtype>(param) {}
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+
+  virtual inline LayerParameter_LayerType type() const {
+    return LayerParameter_LayerType_LOOKUP_TABLE;
+  }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+
+ protected:
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
+
+  int NUM_;
+  int INPUT_SIZE_;
+  int N_INDEX_;
+  int SIZE_;
+};
+
+
 
 }  // namespace caffe
 

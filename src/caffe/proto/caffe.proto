@@ -28,13 +28,26 @@ message Datum {
   repeated float float_data = 6;
 }
 
-//A sparce vector. Indices are the position in the vector of the non zero entries from data 
+// A sparce vector. Indices are the position in the vector of the non zero entries from data 
 message SparseDatum {
   optional int32 size = 1 [default = 0];
   optional int32 nn = 2 [default = 0];  //number of non zeros entries
   repeated int32 indices = 3 [packed=true];
   optional int32 label = 4;
   repeated float data = 5 [packed=true];
+}
+
+// A data point containing text encoded in a sequnce of integers each representing a token
+// each token can have an array of float attached to it of size height_data
+// the data array is of size size * height_data
+// n_index is the size of the vocab
+message TextDatum {
+  optional int32 n_index = 1;
+  optional int32 size = 2 [default = 0];
+  repeated int32 indices = 3 [packed=true];
+  optional int32 label = 4;
+  optional int32 height_data = 5 [default = 0];
+  repeated float data = 6 [packed=true];
 }
 
 message FillerParameter {
@@ -207,7 +220,7 @@ message NetStateRule {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available ID: 42 (last added: memory_data_sparse_param)
+// LayerParameter next available ID: 43 (last added: text_data_param)
 message LayerParameter {
   repeated string bottom = 2; // the name of the bottom blobs
   repeated string top = 3; // the name of the top blobs
@@ -228,7 +241,7 @@ message LayerParameter {
   // line above the enum. Update the next available ID when you add a new
   // LayerType.
   //
-  // LayerType next available ID: 40 (last added: MEMORY_DATA_SPARSE)
+  // LayerType next available ID: 42 (last added: TEXT_DATA)
   enum LayerType {
     // "NONE" layer type is 0th enum element so that we don't cause confusion
     // by defaulting to an existent LayerType (instead, should usually error if
@@ -254,6 +267,7 @@ message LayerParameter {
     IMAGE_DATA = 12;
     INFOGAIN_LOSS = 13;
     INNER_PRODUCT = 14;
+    LOOKUP_TABLE = 40;
     LRN = 15;
     MEMORY_DATA = 29;
     MEMORY_DATA_SPARSE = 39;
@@ -271,6 +285,7 @@ message LayerParameter {
     SPLIT = 22;
     SLICE = 33;
     TANH = 23;
+    TEXT_DATA = 41;
     WINDOW_DATA = 24;
     THRESHOLD = 31;
   }
@@ -316,6 +331,7 @@ message LayerParameter {
   optional ImageDataParameter image_data_param = 15;
   optional InfogainLossParameter infogain_loss_param = 16;
   optional InnerProductParameter inner_product_param = 17;
+  optional LookupTableParameter lookup_table_param = 42;
   optional LRNParameter lrn_param = 18;
   optional MemoryDataParameter memory_data_param = 22;
   optional MemoryDataSparseParameter memory_data_sparse_param = 41;
@@ -327,6 +343,7 @@ message LayerParameter {
   optional SoftmaxParameter softmax_param = 39;
   optional SliceParameter slice_param = 31;
   optional TanHParameter tanh_param = 37;
+  optional TextDataParameter text_data_param = 42;
   optional ThresholdParameter threshold_param = 25;
   optional WindowDataParameter window_data_param = 20;
 
@@ -556,6 +573,12 @@ message InnerProductParameter {
   optional FillerParameter weight_filler = 3; // The filler for the weight
   optional FillerParameter bias_filler = 4; // The filler for the bias
 }
+// Message that stores the parameters used by LookupTableLayer
+message LookupTableParameter {
+	optional uint32 n_index = 1;
+	optional uint32 size = 2;
+	optional FillerParameter weight_filler = 3; // The filler for the weight
+}
 
 // Message that stores parameters used by LRNLayer
 message LRNParameter {
@@ -682,6 +705,19 @@ message TanHParameter {
     CUDNN = 2;
   }
   optional Engine engine = 1 [default = DEFAULT];
+}
+
+// Message that stores the parameter for the TextDataLayer
+message TextDataParameter {
+ enum DB {
+    LEVELDB = 0;
+    LMDB = 1;
+  }
+  // Specify the data source.
+  optional string source = 1;
+  // Specify the batch size.
+  optional uint32 batch_size = 2;
+  optional DB backend = 3 [default = LEVELDB];
 }
 
 // Message that stores parameters used by WindowDataLayer

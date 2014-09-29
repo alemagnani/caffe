@@ -94,6 +94,48 @@ class BasePrefetchingDataLayer :
 };
 
 template <typename Dtype>
+class BasePrefetchingSwapDataLayer :
+    public BaseDataLayer<Dtype>, public InternalThread {
+ public:
+  explicit BasePrefetchingSwapDataLayer(const LayerParameter& param);
+  virtual ~BasePrefetchingSwapDataLayer() {}
+  // LayerSetUp: implements common data layer setup functionality, and calls
+  // DataLayerSetUp to do special data layer setup for individual layer types.
+  // This method may not be overridden.
+  void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+
+  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
+        vector<Blob<Dtype>*>* top) {}
+
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+        const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {}
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+        const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {}
+
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+
+  virtual void CreatePrefetchThread();
+  virtual void JoinPrefetchThread();
+  // The thread's function
+  virtual void InternalThreadEntry() {}
+
+ protected:
+
+  virtual void CopyData(Blob<Dtype>* top_blob);
+
+  shared_ptr<Blob<Dtype>> prefetch_data_;
+  shared_ptr<Blob<Dtype>> prefetch_data_copy_;
+  shared_ptr<Blob<Dtype>> prefetch_label_;
+  shared_ptr<Blob<Dtype>> prefetch_label_copy_;
+  Caffe::Phase phase_;
+  bool output_labels_;
+};
+
+template <typename Dtype>
 class DataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
   explicit DataLayer(const LayerParameter& param)
@@ -426,6 +468,43 @@ class WindowDataLayer : public BasePrefetchingDataLayer<Dtype> {
   vector<vector<float> > fg_windows_;
   vector<vector<float> > bg_windows_;
 };
+
+
+template <typename Dtype>
+class TextDataLayer : public BasePrefetchingSwapDataLayer<Dtype> {
+ public:
+  explicit TextDataLayer(const LayerParameter& param)
+      : BasePrefetchingSwapDataLayer<Dtype>(param) {}
+  virtual ~TextDataLayer();
+  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+
+  virtual inline LayerParameter_LayerType type() const {
+    return LayerParameter_LayerType_TEXT_DATA;
+  }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int MinTopBlobs() const { return 1; }
+  virtual inline int MaxTopBlobs() const { return 2; }
+
+ protected:
+  virtual void InternalThreadEntry();
+  virtual void CopyData(Blob<Dtype>* top_blob);
+
+  // LEVELDB
+  shared_ptr<leveldb::DB> db_;
+  shared_ptr<leveldb::Iterator> iter_;
+  // LMDB
+  MDB_env* mdb_env_;
+  MDB_dbi mdb_dbi_;
+  MDB_txn* mdb_txn_;
+  MDB_cursor* mdb_cursor_;
+  MDB_val mdb_key_, mdb_value_;
+
+  int padding_value;
+  int window_size;
+  int height_data;
+};
+
 
 }  // namespace caffe
 
