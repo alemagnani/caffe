@@ -102,7 +102,7 @@ class Blob {
    * This deallocates the SyncedMemory holding this Blob's data_, as
    * shared_ptr calls its destructor when reset with the "=" operator.
    */
-  void ShareData(const Blob& other);
+   virtual void ShareData(const Blob<Dtype>& other);
   /**
    * @brief Set the diff_ shared_ptr to point to the SyncedMemory holding the
    *        diff_ of Blob other -- useful in Layer&s which simply perform a copy
@@ -111,7 +111,7 @@ class Blob {
    * This deallocates the SyncedMemory holding this Blob's diff_, as
    * shared_ptr calls its destructor when reset with the "=" operator.
    */
-  void ShareDiff(const Blob& other);
+   virtual void ShareDiff(const Blob<Dtype>& other);
 
  protected:
   shared_ptr<SyncedMemory> data_;

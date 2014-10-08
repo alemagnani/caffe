@@ -14,6 +14,7 @@
 #include "caffe/common.hpp"
 #include "caffe/data_transformer.hpp"
 #include "caffe/filler.hpp"
+#include "caffe/integer_blob.hpp"
 #include "caffe/internal_thread.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
@@ -95,7 +96,7 @@ class BasePrefetchingDataLayer :
 
 template <typename Dtype>
 class BasePrefetchingSwapDataLayer :
-    public BaseDataLayer<Dtype>, public InternalThread {
+    public Layer<Dtype>, public InternalThread {
  public:
   explicit BasePrefetchingSwapDataLayer(const LayerParameter& param);
   virtual ~BasePrefetchingSwapDataLayer() {}
@@ -127,10 +128,10 @@ class BasePrefetchingSwapDataLayer :
 
   virtual void CopyData(Blob<Dtype>* top_blob);
 
-  shared_ptr<Blob<Dtype>> prefetch_data_;
-  shared_ptr<Blob<Dtype>> prefetch_data_copy_;
-  shared_ptr<Blob<Dtype>> prefetch_label_;
-  shared_ptr<Blob<Dtype>> prefetch_label_copy_;
+  shared_ptr<Blob<Dtype> > prefetch_data_;
+  shared_ptr<Blob<Dtype> > prefetch_data_copy_;
+  shared_ptr<Blob<Dtype> > prefetch_label_;
+  shared_ptr<Blob<Dtype> > prefetch_label_copy_;
   Caffe::Phase phase_;
   bool output_labels_;
 };

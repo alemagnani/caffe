@@ -63,6 +63,24 @@ template<typename Dtype>
 void IntegerBlob<Dtype>::ToProto(BlobProto* proto, bool write_diff) const {
   LOG(FATAL)<< "ToProto is not supported";
 }
+
+template <typename Dtype>
+void IntegerBlob<Dtype>::ShareData(const Blob<Dtype>& other) {
+  CHECK_EQ(this->count_, other.count());
+  const IntegerBlob<Dtype>* integerBlob =
+        dynamic_cast<const IntegerBlob<Dtype>*>(&other);
+  CHECK(integerBlob);
+
+  this->data_ = integerBlob->data();
+  indices_ = integerBlob->indices();
+}
+
+template<typename Dtype>
+void IntegerBlob<Dtype>::ShareDiff(const Blob<Dtype>& other) {
+  LOG(FATAL)<< "ShareDiff is not supported";
+}
+
+
 INSTANTIATE_CLASS(IntegerBlob);
 }  // namespace caffe
 

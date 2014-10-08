@@ -40,6 +40,9 @@ class IntegerBlob : public Blob<Dtype> {
   virtual void FromProto(const BlobProto& proto);
   virtual void ToProto(BlobProto* proto, bool write_diff = false) const;
 
+  virtual void ShareData(const Blob<Dtype>& other);
+  virtual void ShareDiff(const Blob<Dtype>& other);
+
  protected:
   shared_ptr<SyncedMemory> indices_;
 
