@@ -151,10 +151,12 @@ void BasePrefetchingSwapDataLayer<Dtype>::Forward_cpu(
   // Start a new prefetch thread
    CreatePrefetchThread();
 
+   // copy the data
    CopyData((*top)[0]);
 
+   // copy the labels
   if (this->output_labels_) {
-    caffe_copy(prefetch_label_copy_.count(), prefetch_label_copy_.cpu_data(),
+    caffe_copy(prefetch_label_copy_->count(), prefetch_label_copy_->cpu_data(),
                (*top)[1]->mutable_cpu_data());
   }
 
@@ -162,8 +164,8 @@ void BasePrefetchingSwapDataLayer<Dtype>::Forward_cpu(
 
 template <typename Dtype>
 void BasePrefetchingSwapDataLayer<Dtype>::CopyData(Blob<Dtype>* top_blob){
-  // Copy the data
-    caffe_copy(prefetch_data_.count(), prefetch_data_.cpu_data(),
+  // Copy the data form the prefetch data copy into the top blob
+    caffe_copy(prefetch_data_copy_->count(), prefetch_data_copy_->cpu_data(),
                top_blob->mutable_cpu_data());
 }
 

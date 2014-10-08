@@ -73,7 +73,6 @@ void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   default:
     LOG(FATAL) << "Unknown database backend";
   }
-
   // Read a data point, and use it to initialize the top blob.
   TextDatum datum;
   switch (this->layer_param_.text_data_param().backend()) {
@@ -89,43 +88,56 @@ void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   height_data = datum.height_data();
   window_size = datum.size();
 
+  this->prefetch_data_.reset(new IntegerBlob<Dtype>());
+  this->prefetch_data_copy_.reset(new IntegerBlob<Dtype>());
+  this->prefetch_label_.reset(new Blob<Dtype>());
+  this->prefetch_label_copy_.reset(new Blob<Dtype>());
+
   (*top)[0]->Reshape(
         this->layer_param_.text_data_param().batch_size(), window_size,
         height_data, 1);
-  this->prefetch_data_.Reshape(this->layer_param_.text_data_param().batch_size(), window_size,
+  this->prefetch_data_->Reshape(this->layer_param_.text_data_param().batch_size(), window_size,
                                height_data, 1);
-  this->prefetch_data_copy_.Reshape(this->layer_param_.text_data_param().batch_size(), window_size,
+  this->prefetch_data_copy_->Reshape(this->layer_param_.text_data_param().batch_size(), window_size,
                                 height_data, 1);
-
   LOG(INFO) << "output data size: " << (*top)[0]->num() << ","
       << (*top)[0]->channels() << "," << (*top)[0]->height() << ","
       << (*top)[0]->width();
   // label
   if (this->output_labels_) {
     (*top)[1]->Reshape(this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
-    this->prefetch_label_.Reshape(this->layer_param_.text_data_param().batch_size(),
+    this->prefetch_label_->Reshape(this->layer_param_.text_data_param().batch_size(),
         1, 1, 1);
+    this->prefetch_label_copy_->Reshape(this->layer_param_.text_data_param().batch_size(),
+            1, 1, 1);
   }
 }
 
 template <typename Dtype>
 void TextDataLayer<Dtype>::CopyData(Blob<Dtype>* top_blob){
   // Copy the data
-    caffe_copy(prefetch_data_.count(), prefetch_data_.cpu_data(),
-               top_blob->mutable_cpu_data());
+  top_blob->ShareData(*this->prefetch_data_copy_.get());
 }
 
 // This function is used to create a thread that prefetches the data.
 template <typename Dtype>
 void TextDataLayer<Dtype>::InternalThreadEntry() {
   TextDatum datum;
-  CHECK(this->prefetch_data_.count());
-  Dtype* top_data = this->prefetch_data_.mutable_cpu_data();
+  CHECK(this->prefetch_data_->count());
+
+  Dtype* top_data = this->prefetch_data_->mutable_cpu_data();
+  IntegerBlob<Dtype> * integerBlob =
+          dynamic_cast<IntegerBlob<Dtype>*>(this->prefetch_data_.get());
+
+  int* int_data = integerBlob->mutable_cpu_indices();
+
   Dtype* top_label = NULL;  // suppress warnings about uninitialized variables
   if (this->output_labels_) {
-    top_label = this->prefetch_label_.mutable_cpu_data();
+    top_label = this->prefetch_label_->mutable_cpu_data();
   }
   const int batch_size = this->layer_param_.text_data_param().batch_size();
+
+  const int dtype_size = height_data * window_size;
 
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     // get a blob
@@ -145,6 +157,14 @@ void TextDataLayer<Dtype>::InternalThreadEntry() {
       LOG(FATAL) << "Unknown database backend";
     }
 
+    Dtype* destination = top_data + item_id * dtype_size;
+    for (int k=0; k < dtype_size; k++) {
+      destination[k] = datum.data(k);
+    }
+    int * int_destination = int_data + item_id * window_size;
+    for (int k=0; k < window_size; k++) {
+      int_destination[k] = datum.indices(k);
+    }
 
     if (this->output_labels_) {
       top_label[item_id] = datum.label();
