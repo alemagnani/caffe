@@ -17,6 +17,9 @@ void InnerProductLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // Figure out the dimensions
   M_ = bottom[0]->num();
   K_ = bottom[0]->count() / bottom[0]->num();
+
+  LOG(INFO) << "inner product M: " << M_ << " K: " << K_;
+
   N_ = num_output;
   (*top)[0]->Reshape(bottom[0]->num(), num_output, 1, 1);
   // Check if we need to set up the weights

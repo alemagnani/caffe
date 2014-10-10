@@ -2,6 +2,7 @@
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
+#include "caffe/integer_blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/sparse_blob.hpp"
@@ -223,7 +224,7 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
   case LayerParameter_LayerType_INNER_PRODUCT:
     return new InnerProductLayer<Dtype>(param);
   case LayerParameter_LayerType_LOOKUP_TABLE:
-      return new InnerProductLayer<Dtype>(param);
+      return new LookupTableLayer<Dtype>(param);
   case LayerParameter_LayerType_LRN:
     return new LRNLayer<Dtype>(param);
   case LayerParameter_LayerType_MEMORY_DATA:
@@ -258,6 +259,8 @@ Layer<Dtype>* GetLayer(const LayerParameter& param) {
     return new SplitLayer<Dtype>(param);
   case LayerParameter_LayerType_TANH:
     return GetTanHLayer<Dtype>(name, param);
+  case LayerParameter_LayerType_TEXT_DATA:
+      return new TextDataLayer<Dtype>(param);
   case LayerParameter_LayerType_WINDOW_DATA:
     return new WindowDataLayer<Dtype>(param);
   case LayerParameter_LayerType_NONE:
@@ -283,6 +286,12 @@ Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos) {
       if (pos == 0){
         return new SparseBlob<Dtype>();
       }else{
+        return new Blob<Dtype>();
+      }
+    case LayerParameter_LayerType_TEXT_DATA:
+      if (pos == 0 || pos == 1) {
+        return new IntegerBlob<Dtype>();
+      } else {
         return new Blob<Dtype>();
       }
     default:

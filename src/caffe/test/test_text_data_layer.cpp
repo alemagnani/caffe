@@ -24,6 +24,7 @@ class TextDataLayerTest : public MultiDeviceTest<TypeParam> {
   TextDataLayerTest()
       : backend_(TextDataParameter_DB_LEVELDB),
         blob_top_data_(new IntegerBlob<Dtype>()),
+        blob_top_data2_(new IntegerBlob<Dtype>()),
         blob_top_label_(new Blob<Dtype>()),
         seed_(1701) {}
   virtual void SetUp() {
@@ -31,6 +32,7 @@ class TextDataLayerTest : public MultiDeviceTest<TypeParam> {
     MakeTempDir(filename_.get());
     *filename_ += "/db";
     blob_top_vec_.push_back(blob_top_data_);
+    blob_top_vec_.push_back(blob_top_data2_);
     blob_top_vec_.push_back(blob_top_label_);
   }
 
@@ -122,8 +124,8 @@ class TextDataLayerTest : public MultiDeviceTest<TypeParam> {
     TextDataLayer<Dtype> layer(param);
     layer.SetUp(blob_bottom_vec_, &blob_top_vec_);
     EXPECT_EQ(blob_top_data_->num(), 5);
-    EXPECT_EQ(blob_top_data_->channels(), 10);
-    EXPECT_EQ(blob_top_data_->height(), 2);
+    EXPECT_EQ(blob_top_data_->channels(), 2);
+    EXPECT_EQ(blob_top_data_->height(), 10);
     EXPECT_EQ(blob_top_data_->width(), 1);
     EXPECT_EQ(blob_top_label_->num(), 5);
     EXPECT_EQ(blob_top_label_->channels(), 1);
@@ -157,6 +159,7 @@ class TextDataLayerTest : public MultiDeviceTest<TypeParam> {
   TextDataParameter_DB backend_;
   shared_ptr<string> filename_;
   IntegerBlob<Dtype>* const blob_top_data_;
+  IntegerBlob<Dtype>* const blob_top_data2_;
   Blob<Dtype>* const blob_top_label_;
   vector<Blob<Dtype>*> blob_bottom_vec_;
   vector<Blob<Dtype>*> blob_top_vec_;

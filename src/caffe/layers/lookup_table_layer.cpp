@@ -17,11 +17,11 @@ void LookupTableLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   SIZE_ = this->layer_param_.lookup_table_param().size();
   // Figure out the dimensions
   NUM_ = bottom[0]->num();
-  INPUT_SIZE_ = bottom[0]->channels();
-  CHECK_EQ(bottom[0]->height(), 1);
+  INPUT_SIZE_ = bottom[0]->height();
   CHECK_EQ(bottom[0]->width(), 1);
+  LOG(INFO) << "input_size: " << INPUT_SIZE_ << " num: " << NUM_ << " size: "<< SIZE_ << " N_INDEX: " << N_INDEX_ << "\n";
+  (*top)[0]->Reshape(bottom[0]->num(), SIZE_, INPUT_SIZE_, 1);
 
-  (*top)[0]->Reshape(bottom[0]->num(), INPUT_SIZE_, SIZE_, 1);
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {
     LOG(INFO)<< "Skipping parameter initialization";
@@ -49,13 +49,15 @@ void LookupTableLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* top_data = (*top)[0]->mutable_cpu_data();
   const Dtype* weight = this->blobs_[0]->cpu_data();
 
+  caffe_scal(NUM_ * INPUT_SIZE_ * SIZE_, (Dtype) 0.0, top_data);
+
   for (int i = 0; i < NUM_; i++) {
     for (int w = 0; w < INPUT_SIZE_; w++) {
       const int pos = bottom_data[i * INPUT_SIZE_ + w];
       CHECK_GE(pos, 0);
       CHECK_LT(pos, N_INDEX_);
-      caffe_copy(SIZE_, weight + pos * SIZE_,
-                 top_data +( i * (INPUT_SIZE_ * SIZE_) + w * SIZE_));
+
+      caffe_axpy(SIZE_, (Dtype) 1., weight + pos * SIZE_, top_data +( i * (INPUT_SIZE_ * SIZE_) + w), 1, INPUT_SIZE_);
     }
   }
 }
@@ -80,7 +82,7 @@ void LookupTableLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
         const int pos = bottom_data[i * INPUT_SIZE_ + w];
         CHECK_GE(pos, 0);
         CHECK_LT(pos, N_INDEX_);
-        caffe_axpy(SIZE_, (Dtype) 1., top_diff +( i * (INPUT_SIZE_ * SIZE_) + w * SIZE_), diff + pos * SIZE_);
+        caffe_axpy(SIZE_, (Dtype) 1., top_diff +( i * (INPUT_SIZE_ * SIZE_) + w), diff + pos * SIZE_, INPUT_SIZE_, 1);
       }
     }
   }

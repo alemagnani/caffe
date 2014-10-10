@@ -94,18 +94,18 @@ void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   this->prefetch_label_copy_.reset(new Blob<Dtype>());
 
   (*top)[0]->Reshape(
-        this->layer_param_.text_data_param().batch_size(), window_size,
-        height_data, 1);
-  this->prefetch_data_->Reshape(this->layer_param_.text_data_param().batch_size(), window_size,
-                               height_data, 1);
-  this->prefetch_data_copy_->Reshape(this->layer_param_.text_data_param().batch_size(), window_size,
-                                height_data, 1);
+        this->layer_param_.text_data_param().batch_size(),height_data, window_size, 1);
+  (*top)[1]->Reshape(
+          this->layer_param_.text_data_param().batch_size(),height_data, window_size, 1);
+
+  this->prefetch_data_->Reshape(this->layer_param_.text_data_param().batch_size(), height_data, window_size, 1);
+  this->prefetch_data_copy_->Reshape(this->layer_param_.text_data_param().batch_size(), height_data, window_size, 1);
   LOG(INFO) << "output data size: " << (*top)[0]->num() << ","
       << (*top)[0]->channels() << "," << (*top)[0]->height() << ","
       << (*top)[0]->width();
   // label
   if (this->output_labels_) {
-    (*top)[1]->Reshape(this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
+    (*top)[2]->Reshape(this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
     this->prefetch_label_->Reshape(this->layer_param_.text_data_param().batch_size(),
         1, 1, 1);
     this->prefetch_label_copy_->Reshape(this->layer_param_.text_data_param().batch_size(),
@@ -176,7 +176,7 @@ void TextDataLayer<Dtype>::InternalThreadEntry() {
       iter_->Next();
       if (!iter_->Valid()) {
         // We have reached the end. Restart from the first.
-        DLOG(INFO) << "Restarting data prefetching from start.";
+        // DLOG(INFO) << "Restarting data prefetching from start.";
         iter_->SeekToFirst();
       }
       break;
