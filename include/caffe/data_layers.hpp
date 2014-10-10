@@ -124,6 +124,8 @@ class BasePrefetchingSwapDataLayer :
   // The thread's function
   virtual void InternalThreadEntry() {}
 
+  virtual int MinTopBlobs() const { return -1; }
+
  protected:
 
   virtual void CopyData(Blob<Dtype>* top_blob);
@@ -484,8 +486,8 @@ class TextDataLayer : public BasePrefetchingSwapDataLayer<Dtype> {
     return LayerParameter_LayerType_TEXT_DATA;
   }
   virtual inline int ExactNumBottomBlobs() const { return 0; }
-  virtual inline int MinTopBlobs() const { return 1; }
-  virtual inline int MaxTopBlobs() const { return 2; }
+  virtual inline int MinTopBlobs() const { return 2; }
+  virtual inline int MaxTopBlobs() const { return 3; }
 
  protected:
   virtual void InternalThreadEntry();

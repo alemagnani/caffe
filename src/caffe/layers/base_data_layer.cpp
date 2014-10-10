@@ -107,7 +107,7 @@ BasePrefetchingSwapDataLayer<Dtype>::BasePrefetchingSwapDataLayer(const LayerPar
 template <typename Dtype>
 void BasePrefetchingSwapDataLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
-  if (top->size() == 1) {
+  if (top->size() == MinTopBlobs()) {
       output_labels_ = false;
     } else {
       output_labels_ = true;
@@ -152,12 +152,14 @@ void BasePrefetchingSwapDataLayer<Dtype>::Forward_cpu(
    CreatePrefetchThread();
 
    // copy the data
-   CopyData((*top)[0]);
+   for (int k=0; k < MinTopBlobs(); k++){
+     CopyData((*top)[k]);
+   }
 
    // copy the labels
   if (this->output_labels_) {
     caffe_copy(prefetch_label_copy_->count(), prefetch_label_copy_->cpu_data(),
-               (*top)[1]->mutable_cpu_data());
+               (*top)[MinTopBlobs()]->mutable_cpu_data());
   }
 
 }

@@ -9,10 +9,10 @@ namespace caffe {
 template<typename Dtype>
 void IntegerBlob<Dtype>::Reshape(const int num, const int channels,
                                 const int height, const int width) {
-
+  CHECK_EQ(width, 1);
   Blob<Dtype>::Reshape(num, channels, height,width);
   if (this->count_ > 0) {
-        indices_.reset(new SyncedMemory(this->num_ * this-> channels_ * sizeof(int)));
+        indices_.reset(new SyncedMemory(this->num_ * this-> height_ * sizeof(int)));
     } else {
       indices_.reset(reinterpret_cast<SyncedMemory*>(NULL));
     }

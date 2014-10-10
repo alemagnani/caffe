@@ -23,7 +23,7 @@ class LookupTableLayerTest : public MultiDeviceTest<TypeParam> {
   typedef typename TypeParam::Dtype Dtype;
  protected:
   LookupTableLayerTest()
-      : blob_bottom_(new IntegerBlob<Dtype>(2, 3, 1, 1)),
+      : blob_bottom_(new IntegerBlob<Dtype>(2, 1, 3, 1)),
         blob_top_(new Blob<Dtype>()) {
     // fill the values
     FillerParameter filler_param;
@@ -56,9 +56,9 @@ TYPED_TEST(LookupTableLayerTest, TestSetUp) {
       new LookupTableLayer<Dtype>(layer_param));
   layer->SetUp(this->blob_bottom_vec_, &(this->blob_top_vec_));
   EXPECT_EQ(this->blob_top_->num(), 2);
-  EXPECT_EQ(this->blob_top_->height(), 5);
+  EXPECT_EQ(this->blob_top_->height(), 3);
   EXPECT_EQ(this->blob_top_->width(), 1);
-  EXPECT_EQ(this->blob_top_->channels(), 3);
+  EXPECT_EQ(this->blob_top_->channels(), 5);
 }
 
 TYPED_TEST(LookupTableLayerTest, TestForward) {
