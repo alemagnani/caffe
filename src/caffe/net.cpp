@@ -682,7 +682,9 @@ void Net<Dtype>::Backward() {
 
 template <typename Dtype>
 void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
+
   int num_source_layers = param.layers_size();
+  DLOG(INFO) << "Copying param form  " << num_source_layers << "layers";
   for (int i = 0; i < num_source_layers; ++i) {
     const LayerParameter& source_layer = param.layers(i);
     const string& source_layer_name = source_layer.name();

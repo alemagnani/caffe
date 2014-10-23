@@ -74,6 +74,8 @@ void DataTransformer<Dtype>::Transform(const int batch_item_id,
       for (int j = 0; j < size; ++j) {
         Dtype datum_element =
             static_cast<Dtype>(static_cast<uint8_t>(data[j]));
+
+        //std::cout << "element: " << datum_element << " after scaling: " << ((datum_element - mean[j]) * scale) <<"\n";
         transformed_data[j + batch_item_id * size] =
             (datum_element - mean[j]) * scale;
       }

@@ -51,6 +51,7 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     db_.reset(db_temp);
     iter_.reset(db_->NewIterator(leveldb::ReadOptions()));
     iter_->SeekToFirst();
+    key_pos_ = 0;
     }
     break;
   case DataParameter_DB_LMDB:
@@ -67,7 +68,8 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
         << "mdb_cursor_open failed";
     LOG(INFO) << "Opening lmdb " << this->layer_param_.data_param().source();
     CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_, &mdb_value_, MDB_FIRST),
-        MDB_SUCCESS) << "mdb_cursor_get failed";
+             MDB_SUCCESS) << "mdb_cursor_get failed";
+    key_pos_ = 0;
     break;
   default:
     LOG(FATAL) << "Unknown database backend";
@@ -82,8 +84,10 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       switch (this->layer_param_.data_param().backend()) {
       case DataParameter_DB_LEVELDB:
         iter_->Next();
+        key_pos_++;
         if (!iter_->Valid()) {
           iter_->SeekToFirst();
+          key_pos_ = 0;
         }
         break;
       case DataParameter_DB_LMDB:
@@ -91,6 +95,9 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
             != MDB_SUCCESS) {
           CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_, &mdb_value_,
                    MDB_FIRST), MDB_SUCCESS);
+          key_pos_ = 0;
+        } else {
+          key_pos_++;
         }
         break;
       default:
@@ -159,6 +166,9 @@ void DataLayer<Dtype>::InternalThreadEntry() {
     case DataParameter_DB_LEVELDB:
       CHECK(iter_);
       CHECK(iter_->Valid());
+      if (key_pos_ % 10000 == 0) {
+                 LOG(INFO) << "Current key position: " << key_pos_ << " key: "<< iter_->key().ToString();
+      }
       datum.ParseFromString(iter_->value().ToString());
       break;
     case DataParameter_DB_LMDB:
@@ -166,6 +176,7 @@ void DataLayer<Dtype>::InternalThreadEntry() {
               &mdb_value_, MDB_GET_CURRENT), MDB_SUCCESS);
       datum.ParseFromArray(mdb_value_.mv_data,
           mdb_value_.mv_size);
+
       break;
     default:
       LOG(FATAL) << "Unknown database backend";
@@ -182,10 +193,13 @@ void DataLayer<Dtype>::InternalThreadEntry() {
     switch (this->layer_param_.data_param().backend()) {
     case DataParameter_DB_LEVELDB:
       iter_->Next();
+      key_pos_++;
+
       if (!iter_->Valid()) {
         // We have reached the end. Restart from the first.
         DLOG(INFO) << "Restarting data prefetching from start.";
         iter_->SeekToFirst();
+        key_pos_ = 0;
       }
       break;
     case DataParameter_DB_LMDB:
@@ -195,6 +209,9 @@ void DataLayer<Dtype>::InternalThreadEntry() {
         DLOG(INFO) << "Restarting data prefetching from start.";
         CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_,
                 &mdb_value_, MDB_FIRST), MDB_SUCCESS);
+        key_pos_ = 0;
+      } else {
+        key_pos_++;
       }
       break;
     default:

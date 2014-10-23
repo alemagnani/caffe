@@ -73,6 +73,8 @@ void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   default:
     LOG(FATAL) << "Unknown database backend";
   }
+  key_pos_ = 0;
+
   // Read a data point, and use it to initialize the top blob.
   TextDatum datum;
   switch (this->layer_param_.text_data_param().backend()) {
@@ -146,6 +148,11 @@ void TextDataLayer<Dtype>::InternalThreadEntry() {
       CHECK(iter_);
       CHECK(iter_->Valid());
       datum.ParseFromString(iter_->value().ToString());
+
+      if (key_pos_ % 10000 == 0) {
+        LOG(INFO) << "Current key position: " << key_pos_ << " key: "<< iter_->key().ToString();
+      }
+
       break;
     case TextDataParameter_DB_LMDB:
       CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_,
@@ -174,10 +181,12 @@ void TextDataLayer<Dtype>::InternalThreadEntry() {
     switch (this->layer_param_.text_data_param().backend()) {
     case TextDataParameter_DB_LEVELDB:
       iter_->Next();
+      key_pos_++;
       if (!iter_->Valid()) {
         // We have reached the end. Restart from the first.
         // DLOG(INFO) << "Restarting data prefetching from start.";
         iter_->SeekToFirst();
+        key_pos_ = 0;
       }
       break;
     case TextDataParameter_DB_LMDB:
@@ -187,6 +196,9 @@ void TextDataLayer<Dtype>::InternalThreadEntry() {
         DLOG(INFO) << "Restarting data prefetching from start.";
         CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_,
                 &mdb_value_, MDB_FIRST), MDB_SUCCESS);
+        key_pos_ = 0;
+      } else {
+        key_pos_++;
       }
       break;
     default:

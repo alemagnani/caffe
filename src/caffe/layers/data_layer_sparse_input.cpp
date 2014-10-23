@@ -39,6 +39,10 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
     CHECK(layer->iter_->Valid());
     shared_ptr<SparseDatum> datum(new SparseDatum());
 
+    if (layer->key_pos_ % 10000 == 0) {
+            LOG(INFO) << "Current key position: " << layer->key_pos_ << " key: "<< layer->iter_->key().ToString();
+    }
+
     datum->ParseFromString(layer->iter_->value().ToString());
     datums.push_back(datum);
     if (layer->output_labels_) {
@@ -46,9 +50,11 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
     }
     // go to the next iter
     layer->iter_->Next();
+    layer->key_pos_++;
     if (!layer->iter_->Valid()) {
       // We have reached the end. Restart from the first.
       layer->iter_->SeekToFirst();
+      layer->key_pos_ = 0;
     }
   }
   int nn = 0;
@@ -106,6 +112,8 @@ void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   db_.reset(db_temp);
   iter_.reset(db_->NewIterator(leveldb::ReadOptions()));
   iter_->SeekToFirst();
+  key_pos_ = 0;
+
   // Check if we would need to randomly skip a few data points
   if (this->layer_param_.data_sparse_input_param().rand_skip()) {
     unsigned int skip = caffe_rng_rand() %
@@ -113,8 +121,10 @@ void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     LOG(INFO) << "Skipping first " << skip << " data points.";
     while (skip-- > 0) {
       iter_->Next();
+      key_pos_++;
       if (!iter_->Valid()) {
         iter_->SeekToFirst();
+        key_pos_ = 0;
       }
     }
   }

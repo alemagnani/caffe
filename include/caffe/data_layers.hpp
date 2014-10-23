@@ -157,6 +157,7 @@ class DataLayer : public BasePrefetchingDataLayer<Dtype> {
  protected:
   virtual void InternalThreadEntry();
 
+  int key_pos_;
   // LEVELDB
   shared_ptr<leveldb::DB> db_;
   shared_ptr<leveldb::Iterator> iter_;
@@ -202,6 +203,8 @@ class DataLayerSparseInput : public Layer<Dtype> {
 
   virtual void CreatePrefetchThread();
   virtual void JoinPrefetchThread();
+
+  int key_pos_;
 
   shared_ptr<leveldb::DB> db_;
   shared_ptr<leveldb::Iterator> iter_;
@@ -492,6 +495,8 @@ class TextDataLayer : public BasePrefetchingSwapDataLayer<Dtype> {
  protected:
   virtual void InternalThreadEntry();
   virtual void CopyData(Blob<Dtype>* top_blob);
+
+  int key_pos_;
 
   // LEVELDB
   shared_ptr<leveldb::DB> db_;
