@@ -684,7 +684,7 @@ template <typename Dtype>
 void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
 
   int num_source_layers = param.layers_size();
-  DLOG(INFO) << "Copying param form  " << num_source_layers << "layers";
+  DLOG(INFO) << "Copying param for  " << num_source_layers << "layers";
   for (int i = 0; i < num_source_layers; ++i) {
     const LayerParameter& source_layer = param.layers(i);
     const string& source_layer_name = source_layer.name();
@@ -715,7 +715,9 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
 template <typename Dtype>
 void Net<Dtype>::CopyTrainedLayersFrom(const string trained_filename) {
   NetParameter param;
+  DLOG(INFO) << "Reading param for copiying";
   ReadNetParamsFromBinaryFileOrDie(trained_filename, &param);
+  DLOG(INFO) << "Done Reading param for copiying";
   CopyTrainedLayersFrom(param);
 }
 

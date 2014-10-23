@@ -114,6 +114,7 @@ int train() {
   } else if (FLAGS_weights.size()) {
     LOG(INFO) << "Finetuning from " << FLAGS_weights;
     solver->net()->CopyTrainedLayersFrom(FLAGS_weights);
+    LOG(INFO) << "Done finetuning";
     solver->Solve();
   } else {
     solver->Solve();
