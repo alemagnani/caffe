@@ -1,9 +1,12 @@
+import json
 import os
 import time
 import cPickle
 import datetime
 import logging
+import traceback
 import flask
+import sys
 import werkzeug
 import optparse
 import tornado.wsgi
@@ -110,14 +113,13 @@ class ImagenetClassifier(object):
     }
     for key, val in default_args.iteritems():
         if not os.path.exists(val):
-            raise Exception(
-                "File for {} is missing. Should be at: {}".format(key, val))
+            print "File for {} is missing. Should be at: {}".format(key, val)
     default_args['image_dim'] = 227
     default_args['raw_scale'] = 255.
     default_args['gpu_mode'] = False
 
     def __init__(self, model_def_file, pretrained_model_file, mean_file,
-                 raw_scale, class_labels_file, bet_file, image_dim, gpu_mode):
+                 raw_scale, class_labels_file, bet_file, image_dim, gpu_mode, labels=None):
         logging.info('Loading net and associated files...')
         self.net = caffe.Classifier(
             model_def_file, pretrained_model_file,
@@ -125,15 +127,18 @@ class ImagenetClassifier(object):
             mean=np.load(mean_file), channel_swap=(2, 1, 0), gpu=gpu_mode
         )
 
-        with open(class_labels_file) as f:
-            labels_df = pd.DataFrame([
-                {
-                    'synset_id': l.strip().split(' ')[0],
-                    'name': ' '.join(l.strip().split(' ')[1:]).split(',')[0]
-                }
-                for l in f.readlines()
-            ])
-        self.labels = labels_df.sort('synset_id')['name'].values
+        if labels is None:
+            with open(class_labels_file) as f:
+                labels_df = pd.DataFrame([
+                    {
+                        'synset_id': l.strip().split(' ')[0],
+                        'name': ' '.join(l.strip().split(' ')[1:]).split(',')[0]
+                    }
+                    for l in f.readlines()
+                ])
+            self.labels = labels_df.sort('synset_id')['name'].values
+        else:
+            self.labels = np.asarray(labels)
 
         self.bet = cPickle.load(open(bet_file))
         # A bias to prefer children nodes in single-chain paths
@@ -147,7 +152,12 @@ class ImagenetClassifier(object):
             scores = self.net.predict([image], oversample=True).flatten()
             endtime = time.time()
 
+            print 'size of scores: {}, max_score {}'.format(len(scores), np.max(scores))
+
+            print self.labels[scores.argsort()[:-5]]
+
             indices = (-scores).argsort()[:5]
+
             predictions = self.labels[indices]
 
             # In addition to the prediction text, we will also produce
@@ -172,6 +182,7 @@ class ImagenetClassifier(object):
             return (True, meta, bet_result, '%.3f' % (endtime - starttime))
 
         except Exception as err:
+            traceback.print_exc()
             logging.info('Classification error: %s', err)
             return (False, 'Something went wrong when classifying the '
                            'image. Maybe try another one?')
@@ -203,20 +214,77 @@ def start_from_terminal(app):
         help="use gpu mode",
         action='store_true', default=False)
 
+    parser.add_option(
+        '--model_def_file',
+        help="the model definition prototxt",
+        action='store', type='str', default=None)
+
+    parser.add_option(
+        '--pretrained_model_file',
+        help="the model trained",
+        action='store', type='str', default=None)
+
+    parser.add_option(
+        '--mean_file',
+        help="the mean image file",
+        action='store', type='str', default=None)
+
+    parser.add_option(
+        '--bet_file',
+        help="the bet file",
+        action='store', type='str', default=None)
+
+    parser.add_option(
+        '--label_file',
+        help="the label file",
+        action='store', type='str', default=None)
+
+    parser.add_option(
+        '--class_labels_file',
+        help="the class label file",
+        action='store', type='str', default=None)
+
+
     opts, args = parser.parse_args()
     ImagenetClassifier.default_args.update({'gpu_mode': opts.gpu})
+    if opts.model_def_file is not None:
+        ImagenetClassifier.default_args.update({'model_def_file': opts.model_def_file})
+    if opts.pretrained_model_file is not None:
+        ImagenetClassifier.default_args.update({'pretrained_model_file': opts.pretrained_model_file})
+    if opts.mean_file is not None:
+        ImagenetClassifier.default_args.update({'mean_file': opts.mean_file})
+    if opts.bet_file is not None:
+        ImagenetClassifier.default_args.update({'bet_file': opts.bet_file})
+    if opts.class_labels_file is not None:
+        ImagenetClassifier.default_args.update({'class_labels_file': opts.class_labels_file})
+
+    label_file = opts.label_file
+    if label_file is not None:
+        with open(label_file, 'rb') as f:
+            labels = json.load(f).get('names')
+            ImagenetClassifier.default_args['labels'] = labels
 
     # Initialize classifier
     app.clf = ImagenetClassifier(**ImagenetClassifier.default_args)
 
     if opts.debug:
+        print 'running in debug mode'
         app.run(debug=True, host='0.0.0.0', port=opts.port)
     else:
         start_tornado(app, opts.port)
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
     start_from_terminal(app)

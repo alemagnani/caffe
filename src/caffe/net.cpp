@@ -684,6 +684,7 @@ template <typename Dtype>
 void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
 
   int num_source_layers = param.layers_size();
+  std::cout << "Copying param for  " << num_source_layers << "layers\n";
   DLOG(INFO) << "Copying param for  " << num_source_layers << "layers";
   for (int i = 0; i < num_source_layers; ++i) {
     const LayerParameter& source_layer = param.layers(i);
@@ -695,9 +696,11 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
     }
     if (target_layer_id == layer_names_.size()) {
       DLOG(INFO) << "Ignoring source layer " << source_layer_name;
+      std::cout << "Ignoring source layer " << source_layer_name << "\n";
       continue;
     }
     DLOG(INFO) << "Copying source layer " << source_layer_name;
+    std::cout << "Copying source layer " << source_layer_name << "\n";
     vector<shared_ptr<Blob<Dtype> > >& target_blobs =
         layers_[target_layer_id]->blobs();
     CHECK_EQ(target_blobs.size(), source_layer.blobs_size())
@@ -715,6 +718,7 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
 template <typename Dtype>
 void Net<Dtype>::CopyTrainedLayersFrom(const string trained_filename) {
   NetParameter param;
+  std::cout << "Reading param for copyin layer info\n";
   DLOG(INFO) << "Reading param for copiying";
   ReadNetParamsFromBinaryFileOrDie(trained_filename, &param);
   DLOG(INFO) << "Done Reading param for copiying";

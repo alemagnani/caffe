@@ -49,15 +49,15 @@
     <!-- Begin page content -->
     <div class="container">
       <div class="page-header">
-        <h1><a href="/">Caffe Demos</a></h1>
+        <h1><a href="/">Image Only Product Type Demo (Adchemy Taxonomy)</a></h1>
         <p>
-          The <a href="http://caffe.berkeleyvision.org">Caffe</a> neural network library makes implementing state-of-the-art computer vision systems easy.
+          The <a href="https://gecgithub01.walmart.com/Qarth/caffe-sparse">Caffe Sparse</a> neural network library makes implementing state-of-the-art computer vision systems easy.
         </p>
       </div>
 
       <div>
         <h2>Classification</h2>
-        <a href="/classify_url?imageurl=http%3A%2F%2Fi.telegraph.co.uk%2Fmultimedia%2Farchive%2F02351%2Fcross-eyed-cat_2351472k.jpg">Click for a Quick Example</a>
+        <a href="/classify_url?imageurl=http%3A%2F%2Fi5.walmartimages.com%2Fdfw%2Fdce07b8c-4e29%2Fk2-_e37c1e2b-26dc-4bcf-a6fd-f61389eda43d.v1.jpg">Click for a Quick Example</a>
       </div>
 
       {% if has_result %}
@@ -70,10 +70,12 @@
         <div class="media-body">
           <div class="bs-example bs-example-tabs">
             <ul id="myTab" class="nav nav-tabs">
-              <li class="active"><a href="#infopred" data-toggle="tab">Maximally accurate</a></li>
-              <li><a href="#flatpred" data-toggle="tab">Maximally specific</a></li>
+              <!-- <li class="active"><a href="#infopred" data-toggle="tab">Maximally accurate</a></li> -->
+              <li class="active"><a href="#flatpred" data-toggle="tab">Maximally specific</a></li>
             </ul>
+
             <div id="myTabContent" class="tab-content">
+                <!--
               <div class="tab-pane fade in active" id="infopred">
                 <ul class="list-group">
                   {% for single_pred in result[2] %}
@@ -85,8 +87,8 @@
                   </li>
                   {% endfor %}
                 </ul>
-              </div>
-              <div class="tab-pane fade" id="flatpred">
+              </div>  -->
+              <div class="tab-pane fade in active" id="flatpred">
                 <ul class="list-group">
                   {% for single_pred in result[1] %}
                   <li class="list-group-item">
