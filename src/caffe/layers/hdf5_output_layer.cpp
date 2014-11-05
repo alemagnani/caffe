@@ -31,7 +31,7 @@ HDF5OutputLayer<Dtype>::~HDF5OutputLayer<Dtype>() {
 template <typename Dtype>
 void HDF5OutputLayer<Dtype>::SaveBlobs() {
   // TODO: no limit on the number of blobs
-  LOG(INFO) << "Saving HDF5 file: " << file_name_;
+  LOG(INFO) << "Saving HDF5 file " << file_name_;
   CHECK_EQ(data_blob_.num(), label_blob_.num()) <<
       "data blob and label blob must have the same batch size";
 
@@ -48,7 +48,7 @@ void HDF5OutputLayer<Dtype>::SaveBlobs() {
 
 template <typename Dtype>
 void HDF5OutputLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top) {
+      const vector<Blob<Dtype>*>& top) {
   CHECK_GE(bottom.size(), 2);
   CHECK_EQ(bottom[0]->num(), bottom[1]->num());
   data_blob_.Reshape(bottom[0]->num(), bottom[0]->channels(),
@@ -69,7 +69,7 @@ void HDF5OutputLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
 template <typename Dtype>
 void HDF5OutputLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   return;
 }
 
@@ -78,5 +78,5 @@ STUB_GPU(HDF5OutputLayer);
 #endif
 
 INSTANTIATE_CLASS(HDF5OutputLayer);
-
+REGISTER_LAYER_CLASS(HDF5_OUTPUT, HDF5OutputLayer);
 }  // namespace caffe

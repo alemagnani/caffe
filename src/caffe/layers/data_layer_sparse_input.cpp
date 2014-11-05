@@ -42,7 +42,6 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
     if (layer->key_pos_ % 10000 == 0) {
             LOG(INFO) << "Current key position: " << layer->key_pos_ << " key: "<< layer->iter_->key().ToString();
     }
-
     datum->ParseFromString(layer->iter_->value().ToString());
     datums.push_back(datum);
     if (layer->output_labels_) {
@@ -88,11 +87,11 @@ DataLayerSparseInput<Dtype>::~DataLayerSparseInput<Dtype>() {
 
 template<typename Dtype>
 void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-                                        vector<Blob<Dtype>*>* top) {
+                                        const vector<Blob<Dtype>*>& top) {
   CHECK_EQ(bottom.size(), 0)<< "Data Layer takes no input blobs.";
-  CHECK_GE(top->size(), 1) << "Data Layer takes at least one blob as output.";
-  CHECK_LE(top->size(), 2) << "Data Layer takes at most two blobs as output.";
-  if (top->size() == 1) {
+  CHECK_GE(top.size(), 1) << "Data Layer takes at least one blob as output.";
+  CHECK_LE(top.size(), 2) << "Data Layer takes at most two blobs as output.";
+  if (top.size() == 1) {
     output_labels_ = false;
   } else {
     output_labels_ = true;
@@ -133,7 +132,7 @@ void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   datum.ParseFromString(iter_->value().ToString());
 
   if ( SparseBlob<Dtype> * sparseBlob =
-      dynamic_cast<SparseBlob<Dtype>*>((*top)[0])) {
+      dynamic_cast<SparseBlob<Dtype>*>(top[0])) {
     sparseBlob -> Reshape(
         this->layer_param_.data_sparse_input_param().batch_size(),
                           datum.size(), 1);
@@ -147,12 +146,12 @@ void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       this->layer_param_.data_sparse_input_param().batch_size(),
       datum.size(), 1));
 
-  LOG(INFO) << "output data size: " << (*top)[0]->num() << ","
-  << (*top)[0]->channels() << "," << (*top)[0]->height() << ","
-  << (*top)[0]->width();
+  LOG(INFO) << "output data size: " << top[0]->num() << ","
+  << top[0]->channels() << "," << top[0]->height() << ","
+  << top[0]->width();
   // label
   if (output_labels_) {
-    (*top)[1]->Reshape(
+    top[1]->Reshape(
         this->layer_param_.data_sparse_input_param().batch_size(),
         1, 1, 1);
     prefetch_label_.reset(
@@ -193,7 +192,7 @@ void DataLayerSparseInput<Dtype>::JoinPrefetchThread() {
 
 template<typename Dtype>
 void DataLayerSparseInput<Dtype>::Forward_cpu(
-    const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
+    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   // First, join the thread
   JoinPrefetchThread();
   // we swap the prefetch data
@@ -204,7 +203,7 @@ void DataLayerSparseInput<Dtype>::Forward_cpu(
   CreatePrefetchThread();
 
   if (SparseBlob<Dtype> * sparseBlob =
-      dynamic_cast<SparseBlob<Dtype>*>((*top)[0])) {
+      dynamic_cast<SparseBlob<Dtype>*>(top[0])) {
     sparseBlob->set_cpu_data(
         const_cast<Dtype*>(prefetch_data_copy_->cpu_data()),
         const_cast<int*>(prefetch_data_copy_->cpu_indices()),
@@ -215,7 +214,7 @@ void DataLayerSparseInput<Dtype>::Forward_cpu(
   }
   if (output_labels_) {
     caffe_copy(prefetch_label_copy_->count(), prefetch_label_copy_->cpu_data(),
-               (*top)[1]->mutable_cpu_data());
+               top[1]->mutable_cpu_data());
   }
 }
 
@@ -224,5 +223,6 @@ STUB_GPU_FORWARD(DataLayerSparseInput, Forward);
 #endif
 
 INSTANTIATE_CLASS(DataLayerSparseInput);
+REGISTER_LAYER_CLASS(DATA_SPARSE_INPUT, DataLayerSparseInput);
 
 }  // namespace caffe
