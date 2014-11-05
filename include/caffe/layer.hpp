@@ -7,6 +7,7 @@
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
+#include "caffe/layer_factory.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/device_alternate.hpp"
 
@@ -48,35 +49,55 @@ class Layer {
    *
    * @param bottom the preshaped input blobs
    * @param top
-   *     the allocated but unshaped output blobs, to be shaped by LayerSetUp
+   *     the allocated but unshaped output blobs, to be shaped by Reshape
    *
    * Checks that the number of bottom and top blobs is correct.
-   * Calls LayerSetUp to do special layer setup for individual layer types.
+   * Calls LayerSetUp to do special layer setup for individual layer types,
+   * followed by Reshape to set up sizes of top blobs and internal buffers.
    * Sets up the loss weight multiplier blobs for any non-zero loss weights.
    * This method may not be overridden.
    */
-  void SetUp(const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
-    CheckBlobCounts(bottom, *top);
+  void SetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {
+    CheckBlobCounts(bottom, top);
     LayerSetUp(bottom, top);
+    Reshape(bottom, top);
     SetLossWeights(top);
   }
 
   /**
-   * @brief Does layer-specific setup: your layer should implement this.
+   * @brief Does layer-specific setup: your layer should implement this function
+   *        as well as Reshape.
    *
    * @param bottom
    *     the preshaped input blobs, whose data fields store the input data for
    *     this layer
    * @param top
-   *     the allocated but unshaped output blobs, to be initialized by LayerSetUp
+   *     the allocated but unshaped output blobs
    *
-   * This method should be used to do layer-specific setup. At a minimum, this
-   * includes reshaping the empty top blobs to the shape as dictated by the
-   * shapes of the bottom blobs and any relevant parameters from the
-   * <code>layer_param_</code>.
+   * This method should do one-time layer specific setup. This includes reading
+   * and processing relevent parameters from the <code>layer_param_</code>.
+   * Setting up the shapes of top blobs and internal buffers should be done in
+   * <code>Reshape</code>, which will be called before the forward pass to
+   * adjust the top blob sizes.
    */
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top) { NOT_IMPLEMENTED; }
+      const vector<Blob<Dtype>*>& top) {}
+
+  /**
+   * @brief Adjust the shapes of top blobs and internal buffers to accomodate
+   *        the shapes of the bottom blobs.
+   *
+   * @param bottom the input blobs, with the requested input shapes
+   * @param top the top blobs, which should be reshaped as needed
+   *
+   * This method should reshape top blobs as needed according to the shapes
+   * of the bottom (input) blobs, as well as reshaping any internal buffers
+   * and making any other necessary adjustments so that the layer can
+   * accomodate the bottom blobs.
+   */
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) = 0;
 
   /**
    * @brief Given the bottom blobs, compute the top blobs and the loss.
@@ -96,7 +117,7 @@ class Layer {
    * Your layer should implement Forward_cpu and (optionally) Forward_gpu.
    */
   inline Dtype Forward(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top);
+      const vector<Blob<Dtype>*>& top);
 
   /**
    * @brief Given the top blob error gradients, compute the bottom blob error
@@ -121,7 +142,7 @@ class Layer {
    */
   inline void Backward(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
-      vector<Blob<Dtype>*>* bottom);
+      const vector<Blob<Dtype>*>& bottom);
 
   /**
    * @brief Returns the vector of learnable parameter blobs.
@@ -287,13 +308,13 @@ class Layer {
 
   /** @brief Using the CPU device, compute the layer output. */
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top) = 0;
+      const vector<Blob<Dtype>*>& top) = 0;
   /**
    * @brief Using the GPU device, compute the layer output.
    *        Fall back to Forward_cpu() if unavailable.
    */
   virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top) {
+      const vector<Blob<Dtype>*>& top) {
     // LOG(WARNING) << "Using CPU code as backup.";
     return Forward_cpu(bottom, top);
   }
@@ -304,7 +325,7 @@ class Layer {
    */
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
-      vector<Blob<Dtype>*>* bottom) = 0;
+      const vector<Blob<Dtype>*>& bottom) = 0;
   /**
    * @brief Using the GPU device, compute the gradients for any parameters and
    *        for the bottom blobs if propagate_down is true.
@@ -312,7 +333,7 @@ class Layer {
    */
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
-      vector<Blob<Dtype>*>* bottom) {
+      const vector<Blob<Dtype>*>& bottom) {
     // LOG(WARNING) << "Using CPU code as backup.";
     Backward_cpu(top, propagate_down, bottom);
   }
@@ -365,17 +386,17 @@ class Layer {
    * Called by SetUp to initialize the weights associated with any top blobs in
    * the loss function. Store non-zero loss weights in the diff blob.
    */
-  inline void SetLossWeights(vector<Blob<Dtype>*>* top) {
+  inline void SetLossWeights(const vector<Blob<Dtype>*>& top) {
     const int num_loss_weights = layer_param_.loss_weight_size();
     if (num_loss_weights) {
-      CHECK_EQ(top->size(), num_loss_weights) << "loss_weight must be "
+      CHECK_EQ(top.size(), num_loss_weights) << "loss_weight must be "
           "unspecified or specified once per top blob.";
-      for (int top_id = 0; top_id < top->size(); ++top_id) {
+      for (int top_id = 0; top_id < top.size(); ++top_id) {
         const Dtype loss_weight = layer_param_.loss_weight(top_id);
         if (loss_weight == Dtype(0)) { continue; }
         this->set_loss(top_id, loss_weight);
-        const int count = (*top)[top_id]->count();
-        Dtype* loss_multiplier = (*top)[top_id]->mutable_cpu_diff();
+        const int count = top[top_id]->count();
+        Dtype* loss_multiplier = top[top_id]->mutable_cpu_diff();
         caffe_set(count, loss_weight, loss_multiplier);
       }
     }
@@ -389,27 +410,27 @@ class Layer {
 // functions.
 template <typename Dtype>
 inline Dtype Layer<Dtype>::Forward(const vector<Blob<Dtype>*>& bottom,
-    vector<Blob<Dtype>*>* top) {
+    const vector<Blob<Dtype>*>& top) {
   Dtype loss = 0;
   switch (Caffe::mode()) {
   case Caffe::CPU:
     Forward_cpu(bottom, top);
-    for (int top_id = 0; top_id < top->size(); ++top_id) {
+    for (int top_id = 0; top_id < top.size(); ++top_id) {
       if (!this->loss(top_id)) { continue; }
-      const int count = (*top)[top_id]->count();
-      const Dtype* data = (*top)[top_id]->cpu_data();
-      const Dtype* loss_weights = (*top)[top_id]->cpu_diff();
+      const int count = top[top_id]->count();
+      const Dtype* data = top[top_id]->cpu_data();
+      const Dtype* loss_weights = top[top_id]->cpu_diff();
       loss += caffe_cpu_dot(count, data, loss_weights);
     }
     break;
   case Caffe::GPU:
     Forward_gpu(bottom, top);
 #ifndef CPU_ONLY
-    for (int top_id = 0; top_id < top->size(); ++top_id) {
+    for (int top_id = 0; top_id < top.size(); ++top_id) {
       if (!this->loss(top_id)) { continue; }
-      const int count = (*top)[top_id]->count();
-      const Dtype* data = (*top)[top_id]->gpu_data();
-      const Dtype* loss_weights = (*top)[top_id]->gpu_diff();
+      const int count = top[top_id]->count();
+      const Dtype* data = top[top_id]->gpu_data();
+      const Dtype* loss_weights = top[top_id]->gpu_diff();
       Dtype blob_loss = 0;
       caffe_gpu_dot(count, data, loss_weights, &blob_loss);
       loss += blob_loss;
@@ -425,7 +446,7 @@ inline Dtype Layer<Dtype>::Forward(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 inline void Layer<Dtype>::Backward(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
-    vector<Blob<Dtype>*>* bottom) {
+    const vector<Blob<Dtype>*>& bottom) {
   switch (Caffe::mode()) {
   case Caffe::CPU:
     Backward_cpu(top, propagate_down, bottom);
@@ -449,13 +470,8 @@ void Layer<Dtype>::ToProto(LayerParameter* param, bool write_diff) {
   }
 }
 
-// The layer factory function
-template <typename Dtype>
-Layer<Dtype>* GetLayer(const LayerParameter& param);
-
 template <typename Dtype>
 Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos);
-
 }  // namespace caffe
 
 #endif  // CAFFE_LAYER_H_

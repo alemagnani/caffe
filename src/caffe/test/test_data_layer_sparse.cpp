@@ -66,7 +66,7 @@ class DataLayerSparseTest : public MultiDeviceTest<TypeParam> {
     data_param->set_batch_size(6);
     data_param->set_source(filename_->c_str());
     DataLayerSparseInput<Dtype> layer(param);
-    layer.SetUp(blob_bottom_vec_, &blob_top_vec_);
+    layer.SetUp(blob_bottom_vec_, blob_top_vec_);
     EXPECT_EQ(blob_top_data_->num(), 6);
     EXPECT_EQ(blob_top_data_->channels(), 6);
     EXPECT_EQ(blob_top_data_->height(), 1);
@@ -77,7 +77,7 @@ class DataLayerSparseTest : public MultiDeviceTest<TypeParam> {
     EXPECT_EQ(blob_top_label_->width(), 1);
 
     for (int iter = 0; iter < 100; ++iter) {
-      layer.Forward(blob_bottom_vec_, &blob_top_vec_);
+      layer.Forward(blob_bottom_vec_, blob_top_vec_);
       for (int i = 0; i < 6; ++i) {
         EXPECT_EQ(i, blob_top_label_->cpu_data()[i]);
       }
@@ -105,7 +105,7 @@ class DataLayerSparseTest : public MultiDeviceTest<TypeParam> {
     data_param->set_batch_size(3);
     data_param->set_source(filename_->c_str());
     DataLayerSparseInput<Dtype> layer(param);
-    layer.SetUp(blob_bottom_vec_, &blob_top_vec_);
+    layer.SetUp(blob_bottom_vec_, blob_top_vec_);
     EXPECT_EQ(blob_top_data_->num(), 3);
     EXPECT_EQ(blob_top_data_->channels(), 6);
     EXPECT_EQ(blob_top_data_->height(), 1);
@@ -117,7 +117,7 @@ class DataLayerSparseTest : public MultiDeviceTest<TypeParam> {
 
     int delta = 0;
     for (int iter = 0; iter < 100; ++iter) {
-      layer.Forward(blob_bottom_vec_, &blob_top_vec_);
+      layer.Forward(blob_bottom_vec_, blob_top_vec_);
       if (iter % 2) {
         delta = 3;
       } else {
