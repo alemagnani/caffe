@@ -323,6 +323,7 @@ class HDF5OutputLayer : public Layer<Dtype> {
       const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void SaveBlobs();
 
+  int count_;
   std::string file_name_;
   hid_t file_id_;
   Blob<Dtype> data_blob_;

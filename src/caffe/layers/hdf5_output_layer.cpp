@@ -14,6 +14,7 @@ namespace caffe {
 template <typename Dtype>
 HDF5OutputLayer<Dtype>::HDF5OutputLayer(const LayerParameter& param)
     : Layer<Dtype>(param),
+      count_(1),
       file_name_(param.hdf5_output_param().file_name()) {
   /* create a HDF5 file */
   file_id_ = H5Fcreate(file_name_.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
@@ -30,12 +31,19 @@ HDF5OutputLayer<Dtype>::~HDF5OutputLayer<Dtype>() {
 template <typename Dtype>
 void HDF5OutputLayer<Dtype>::SaveBlobs() {
   // TODO: no limit on the number of blobs
-  LOG(INFO) << "Saving HDF5 file" << file_name_;
+  LOG(INFO) << "Saving HDF5 file: " << file_name_;
   CHECK_EQ(data_blob_.num(), label_blob_.num()) <<
       "data blob and label blob must have the same batch size";
-  hdf5_save_nd_dataset(file_id_, HDF5_DATA_DATASET_NAME, data_blob_);
-  hdf5_save_nd_dataset(file_id_, HDF5_DATA_LABEL_NAME, label_blob_);
+
+  std::stringstream sstm_data;
+  sstm_data << HDF5_DATA_DATASET_NAME << count_;
+  std::stringstream sstm_label;
+  sstm_label << HDF5_DATA_LABEL_NAME << count_;
+
+  hdf5_save_nd_dataset(file_id_, sstm_data.str(), data_blob_);
+  hdf5_save_nd_dataset(file_id_,  sstm_label.str(), label_blob_);
   LOG(INFO) << "Successfully saved " << data_blob_.num() << " rows";
+  count_++;
 }
 
 template <typename Dtype>
