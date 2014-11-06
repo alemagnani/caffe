@@ -86,8 +86,8 @@ BasePrefetchingSwapDataLayer<Dtype>::BasePrefetchingSwapDataLayer(const LayerPar
 
 template <typename Dtype>
 void BasePrefetchingSwapDataLayer<Dtype>::LayerSetUp(
-    const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
-  if (top->size() == MinTopBlobs()) {
+    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+  if (top.size() == MinTopBlobs()) {
       output_labels_ = false;
     } else {
       output_labels_ = true;
@@ -121,7 +121,7 @@ void BasePrefetchingSwapDataLayer<Dtype>::JoinPrefetchThread() {
 
 template <typename Dtype>
 void BasePrefetchingSwapDataLayer<Dtype>::Forward_cpu(
-    const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
+    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   // First, join the thread
   JoinPrefetchThread();
   prefetch_data_.swap(prefetch_data_copy_);
@@ -133,13 +133,13 @@ void BasePrefetchingSwapDataLayer<Dtype>::Forward_cpu(
 
    // copy the data
    for (int k=0; k < MinTopBlobs(); k++){
-     CopyData((*top)[k]);
+     CopyData(top[k]);
    }
 
    // copy the labels
   if (this->output_labels_) {
     caffe_copy(prefetch_label_copy_->count(), prefetch_label_copy_->cpu_data(),
-               (*top)[MinTopBlobs()]->mutable_cpu_data());
+               top[MinTopBlobs()]->mutable_cpu_data());
   }
 
 }

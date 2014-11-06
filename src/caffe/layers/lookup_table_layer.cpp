@@ -12,7 +12,7 @@ namespace caffe {
 
 template<typename Dtype>
 void LookupTableLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-                                         vector<Blob<Dtype>*>* top) {
+                                         const vector<Blob<Dtype>*>& top) {
   N_INDEX_ = this->layer_param_.lookup_table_param().n_index();
   SIZE_ = this->layer_param_.lookup_table_param().size();
   // Figure out the dimensions
@@ -20,7 +20,7 @@ void LookupTableLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   INPUT_SIZE_ = bottom[0]->height();
   CHECK_EQ(bottom[0]->width(), 1);
   LOG(INFO) << "input_size: " << INPUT_SIZE_ << " num: " << NUM_ << " size: "<< SIZE_ << " N_INDEX: " << N_INDEX_ << "\n";
-  (*top)[0]->Reshape(bottom[0]->num(), SIZE_, INPUT_SIZE_, 1);
+  top[0]->Reshape(bottom[0]->num(), SIZE_, INPUT_SIZE_, 1);
 
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {
@@ -39,14 +39,14 @@ void LookupTableLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
 template<typename Dtype>
 void LookupTableLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-                                          vector<Blob<Dtype>*>* top) {
+                                          const vector<Blob<Dtype>*>& top) {
   IntegerBlob<Dtype> * bottomIntegerBlob =
           dynamic_cast<IntegerBlob<Dtype>*>(bottom[0]);
   if (bottomIntegerBlob == 0) {
     LOG(FATAL)<< "the bottom blob is not an instance of IntegerBlob";
   }
   const int* bottom_data = bottomIntegerBlob->cpu_indices();
-  Dtype* top_data = (*top)[0]->mutable_cpu_data();
+  Dtype* top_data = top[0]->mutable_cpu_data();
   const Dtype* weight = this->blobs_[0]->cpu_data();
 
   caffe_scal(NUM_ * INPUT_SIZE_ * SIZE_, (Dtype) 0.0, top_data);
@@ -65,12 +65,12 @@ void LookupTableLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 template<typename Dtype>
 void LookupTableLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
                                            const vector<bool>& propagate_down,
-                                           vector<Blob<Dtype>*>* bottom) {
+                                           const vector<Blob<Dtype>*>& bottom) {
   if (this->param_propagate_down_[0]) {
     const Dtype* top_diff = top[0]->cpu_diff();
 
     IntegerBlob<Dtype> * bottomIntegerBlob =
-        dynamic_cast<IntegerBlob<Dtype>*>((*bottom)[0]);
+        dynamic_cast<IntegerBlob<Dtype>*>(bottom[0]);
     if (bottomIntegerBlob == 0) {
       LOG(FATAL)<< "the bottom blob is not an instance of IntegerBlob";
     }
@@ -96,5 +96,6 @@ STUB_GPU(LookupTableLayer);
 #endif
 
 INSTANTIATE_CLASS(LookupTableLayer);
+REGISTER_LAYER_CLASS(LOOKUP_TABLE, LookupTableLayer);
 
 }  // namespace caffe

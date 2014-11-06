@@ -8,6 +8,7 @@
 #include "boost/scoped_ptr.hpp"
 #include "hdf5.h"
 #include <leveldb/db.h>
+#include "lmdb.h"
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
@@ -94,10 +95,10 @@ class BasePrefetchingSwapDataLayer :
   // DataLayerSetUp to do special data layer setup for individual layer types.
   // This method may not be overridden.
   void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>& top);
+      const vector<Blob<Dtype>*>& top);
 
   virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-        vector<Blob<Dtype>*>* top) {}
+        const vector<Blob<Dtype>*>& top) {}
 
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
         const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
@@ -196,6 +197,23 @@ class DataLayerSparseInput : public Layer<Dtype> {
 
   virtual void CreatePrefetchThread();
   virtual void JoinPrefetchThread();
+
+
+  int key_pos_;
+
+  shared_ptr<leveldb::DB> db_;
+  shared_ptr<leveldb::Iterator> iter_;
+  int datum_size_;
+
+  pthread_t thread_;
+  shared_ptr<SparseBlob<Dtype> > prefetch_data_;
+  shared_ptr<SparseBlob<Dtype> > prefetch_data_copy_;
+  shared_ptr<Blob<Dtype> > prefetch_label_;
+  shared_ptr<Blob<Dtype> > prefetch_label_copy_;
+
+  bool output_labels_;
+  Caffe::Phase phase_;
+
 };
 
 /**
@@ -407,6 +425,9 @@ public:
 	    return LayerParameter_LayerType_MEMORY_DATA_SPARSE;
 	}
 
+	virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+	      const vector<Blob<Dtype>*>& top) {}
+
 	virtual inline int ExactNumBottomBlobs() const { return 0; }
 	virtual inline int ExactNumTopBlobs() const { return 2; }
 
@@ -487,6 +508,9 @@ class TextDataLayer : public BasePrefetchingSwapDataLayer<Dtype> {
   virtual ~TextDataLayer();
   virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
+
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {}
 
   virtual inline LayerParameter_LayerType type() const {
     return LayerParameter_LayerType_TEXT_DATA;

@@ -39,15 +39,6 @@ message SparseDatum {
   repeated float data = 5 [packed=true];
 }
 
-// A sparce vector. Indices are the position in the vector of the non zero entries from data 
-message SparseDatum {
-  optional int32 size = 1 [default = 0];
-  optional int32 nn = 2 [default = 0];  //number of non zeros entries
-  repeated int32 indices = 3 [packed=true];
-  optional int32 label = 4;
-  repeated float data = 5 [packed=true];
-}
-
 // A data point containing text encoded in a sequnce of integers each representing a token
 // each token can have an array of float attached to it of size height_data
 // the data array is of size size * height_data

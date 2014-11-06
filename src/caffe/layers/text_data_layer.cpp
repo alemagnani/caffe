@@ -1,8 +1,10 @@
-#include <leveldb/db.h>
 #include <stdint.h>
 
 #include <string>
 #include <vector>
+
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
 
 #include "caffe/common.hpp"
 #include "caffe/data_layers.hpp"
@@ -34,14 +36,16 @@ TextDataLayer<Dtype>::~TextDataLayer<Dtype>() {
 
 template <typename Dtype>
 void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top) {
+      const vector<Blob<Dtype>*>& top) {
 
   // Initialize DB
   switch (this->layer_param_.text_data_param().backend()) {
   case TextDataParameter_DB_LEVELDB:
     {
     leveldb::DB* db_temp;
-    leveldb::Options options = GetLevelDBOptions();
+    leveldb::Options options;
+    options.max_open_files = 100;
+
     options.create_if_missing = false;
     LOG(INFO) << "Opening leveldb " << this->layer_param_.text_data_param().source();
     leveldb::Status status = leveldb::DB::Open(
@@ -95,19 +99,19 @@ void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   this->prefetch_label_.reset(new Blob<Dtype>());
   this->prefetch_label_copy_.reset(new Blob<Dtype>());
 
-  (*top)[0]->Reshape(
+  top[0]->Reshape(
         this->layer_param_.text_data_param().batch_size(),height_data, window_size, 1);
-  (*top)[1]->Reshape(
+  top[1]->Reshape(
           this->layer_param_.text_data_param().batch_size(),height_data, window_size, 1);
 
   this->prefetch_data_->Reshape(this->layer_param_.text_data_param().batch_size(), height_data, window_size, 1);
   this->prefetch_data_copy_->Reshape(this->layer_param_.text_data_param().batch_size(), height_data, window_size, 1);
-  LOG(INFO) << "output data size: " << (*top)[0]->num() << ","
-      << (*top)[0]->channels() << "," << (*top)[0]->height() << ","
-      << (*top)[0]->width();
+  LOG(INFO) << "output data size: " << top[0]->num() << ","
+      << top[0]->channels() << "," << top[0]->height() << ","
+      << top[0]->width();
   // label
   if (this->output_labels_) {
-    (*top)[2]->Reshape(this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
+    top[2]->Reshape(this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
     this->prefetch_label_->Reshape(this->layer_param_.text_data_param().batch_size(),
         1, 1, 1);
     this->prefetch_label_copy_->Reshape(this->layer_param_.text_data_param().batch_size(),
@@ -208,5 +212,6 @@ void TextDataLayer<Dtype>::InternalThreadEntry() {
 }
 
 INSTANTIATE_CLASS(TextDataLayer);
+REGISTER_LAYER_CLASS(TEXT_DATA, TextDataLayer);
 
 }  // namespace caffe

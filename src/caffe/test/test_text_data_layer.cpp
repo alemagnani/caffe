@@ -122,7 +122,7 @@ class TextDataLayerTest : public MultiDeviceTest<TypeParam> {
     data_param->set_backend(backend_);
 
     TextDataLayer<Dtype> layer(param);
-    layer.SetUp(blob_bottom_vec_, &blob_top_vec_);
+    layer.SetUp(blob_bottom_vec_, blob_top_vec_);
     EXPECT_EQ(blob_top_data_->num(), 5);
     EXPECT_EQ(blob_top_data_->channels(), 2);
     EXPECT_EQ(blob_top_data_->height(), 10);
@@ -133,7 +133,7 @@ class TextDataLayerTest : public MultiDeviceTest<TypeParam> {
     EXPECT_EQ(blob_top_label_->width(), 1);
 
     for (int iter = 0; iter < 100; ++iter) {
-      layer.Forward(blob_bottom_vec_, &blob_top_vec_);
+      layer.Forward(blob_bottom_vec_, blob_top_vec_);
       for (int i = 0; i < 5; ++i) {
         EXPECT_EQ(i, blob_top_label_->cpu_data()[i]);
       }
