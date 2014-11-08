@@ -170,6 +170,7 @@ TYPED_TEST_CASE(TextDataLayerTest, TestDtypesAndDevices);
 
 TYPED_TEST(TextDataLayerTest, TestReadLevelDB) {
   this->FillLevelDB();
+  std::cout << "filled level db\n";
   this->TestRead();
 }
 

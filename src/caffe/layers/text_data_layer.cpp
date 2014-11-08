@@ -38,6 +38,8 @@ template <typename Dtype>
 void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
 
+  std::cout << "setting up the text data layer\n";
+
   // Initialize DB
   switch (this->layer_param_.text_data_param().backend()) {
   case TextDataParameter_DB_LEVELDB:
@@ -93,6 +95,8 @@ void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
   height_data = datum.height_data();
   window_size = datum.size();
+
+  std::cout << " for the text data layer height data: " << height_data << " window size: " << window_size << "\n";
 
   this->prefetch_data_.reset(new IntegerBlob<Dtype>());
   this->prefetch_data_copy_.reset(new IntegerBlob<Dtype>());

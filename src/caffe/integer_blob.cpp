@@ -12,8 +12,10 @@ void IntegerBlob<Dtype>::Reshape(const int num, const int channels,
   CHECK_EQ(width, 1);
   Blob<Dtype>::Reshape(num, channels, height,width);
   if (this->count_ > 0) {
+     LOG(INFO) << "indices setup to" << this->num_ * this-> height_ << "\n\n";
         indices_.reset(new SyncedMemory(this->num_ * this-> height_ * sizeof(int)));
     } else {
+      LOG(INFO) << "indices setup to null\n";
       indices_.reset(reinterpret_cast<SyncedMemory*>(NULL));
     }
 }
