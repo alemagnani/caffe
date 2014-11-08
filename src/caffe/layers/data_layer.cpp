@@ -137,9 +137,15 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << (*top)[0]->width();
   // label
   if (this->output_labels_) {
-    (*top)[1]->Reshape(this->layer_param_.data_param().batch_size(), 1, 1, 1);
-    this->prefetch_label_.Reshape(this->layer_param_.data_param().batch_size(),
+    if (datum.has_n_multi_label()) {
+      (*top)[1]->Reshape(this->layer_param_.data_param().batch_size(), datum.n_multi_label(), 1, 1);
+           this->prefetch_label_.Reshape(this->layer_param_.data_param().batch_size(),
+                                         datum.n_multi_label(), 1, 1);
+    } else {
+      (*top)[1]->Reshape(this->layer_param_.data_param().batch_size(), 1, 1, 1);
+      this->prefetch_label_.Reshape(this->layer_param_.data_param().batch_size(),
         1, 1, 1);
+    }
   }
   // datum size
   this->datum_channels_ = datum.channels();
@@ -157,6 +163,7 @@ void DataLayer<Dtype>::InternalThreadEntry() {
   Dtype* top_label = NULL;  // suppress warnings about uninitialized variables
   if (this->output_labels_) {
     top_label = this->prefetch_label_.mutable_cpu_data();
+    // TODO scale to 0
   }
   const int batch_size = this->layer_param_.data_param().batch_size();
 
@@ -186,7 +193,13 @@ void DataLayer<Dtype>::InternalThreadEntry() {
     this->data_transformer_.Transform(item_id, datum, this->mean_, top_data);
 
     if (this->output_labels_) {
-      top_label[item_id] = datum.label();
+      if (datum.has_n_multi_label()) {
+        for (int l = 0; l < datum.multi_label_size() ; ++l) {
+          top_label[item_id * datum.n_multi_label() + datum.multi_label(l)]  = 1;
+        }
+      } else {
+        top_label[item_id] = datum.label();
+      }
     }
 
     // go to the next iter

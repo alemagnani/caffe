@@ -26,6 +26,8 @@ message Datum {
   optional int32 label = 5;
   // Optionally, the datum could also hold float data.
   repeated float float_data = 6;
+  repeated int32 multi_label = 7;
+  optional int32 n_multi_label = 8;
 }
 
 // A sparce vector. Indices are the position in the vector of the non zero entries from data 
@@ -35,6 +37,8 @@ message SparseDatum {
   repeated int32 indices = 3 [packed=true];
   optional int32 label = 4;
   repeated float data = 5 [packed=true];
+  repeated int32 multi_label = 6;
+  optional int32 n_multi_label = 7;
 }
 
 // A data point containing text encoded in a sequnce of integers each representing a token
@@ -48,6 +52,8 @@ message TextDatum {
   optional int32 label = 4;
   optional int32 height_data = 5 [default = 0];
   repeated float data = 6 [packed=true];
+  repeated int32 multi_label = 7;
+  optional int32 n_multi_label = 8;
 }
 
 message FillerParameter {
