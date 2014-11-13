@@ -159,8 +159,6 @@ REGISTER_LAYER_CREATOR(TANH, GetTanHLayer);
 
 // Layers that use their constructor as their default creator should be
 // registered in their corresponding cpp files. Do not registere them here.
-
-
 template<typename Dtype>
 Blob<Dtype>* GetTopBlob(const shared_ptr<LayerParameter>& param, int pos) {
   const LayerParameter_LayerType& type = param->type();

@@ -74,6 +74,12 @@ TYPED_TEST(HDF5OutputLayerTest, TestForward) {
   LOG(INFO) << "Loading HDF5 file " << this->input_file_name_;
   hid_t file_id = H5Fopen(this->input_file_name_.c_str(), H5F_ACC_RDONLY,
                           H5P_DEFAULT);
+
+  std::stringstream sstm_data;
+  sstm_data << HDF5_DATA_DATASET_NAME << 1;
+  std::stringstream sstm_label;
+  sstm_label << HDF5_DATA_LABEL_NAME << 1;
+
   ASSERT_GE(file_id, 0)<< "Failed to open HDF5 file" <<
       this->input_file_name_;
   hdf5_load_nd_dataset(file_id, HDF5_DATA_DATASET_NAME, 0, 4,
@@ -103,12 +109,12 @@ TYPED_TEST(HDF5OutputLayerTest, TestForward) {
           this->input_file_name_;
 
   Blob<Dtype>* blob_data = new Blob<Dtype>();
-  hdf5_load_nd_dataset(file_id, HDF5_DATA_DATASET_NAME, 0, 4,
+  hdf5_load_nd_dataset(file_id, sstm_data.str().c_str(), 0, 4,
                        blob_data);
   this->CheckBlobEqual(*(this->blob_data_), *blob_data);
 
   Blob<Dtype>* blob_label = new Blob<Dtype>();
-  hdf5_load_nd_dataset(file_id, HDF5_DATA_LABEL_NAME, 0, 4,
+  hdf5_load_nd_dataset(file_id, sstm_label.str().c_str(), 0, 4,
                        blob_label);
   this->CheckBlobEqual(*(this->blob_label_), *blob_label);
 

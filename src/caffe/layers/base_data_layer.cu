@@ -20,14 +20,6 @@ void BasePrefetchingDataLayer<Dtype>::Forward_gpu(
   CreatePrefetchThread();
 }
 
-template <typename Dtype>
-void BasePrefetchingSwapDataLayer<Dtype>::Forward_gpu(
-    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  Forward_cpu(bottom, top);
-}
-
-
 INSTANTIATE_LAYER_GPU_FORWARD(BasePrefetchingDataLayer);
-INSTANTIATE_LAYER_GPU_FORWARD(BasePrefetchingSwapDataLayer);
 
 }  // namespace caffe

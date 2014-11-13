@@ -1,11 +1,8 @@
-#include <leveldb/db.h>
-#include <pthread.h>
 #include <stdint.h>
 
 #include <string>
 #include <vector>
 
-#include "caffe/common.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/vision_layers.hpp"
@@ -41,7 +38,5 @@ void DataLayerSparseInput<Dtype>::Forward_gpu(
                top[1]->mutable_gpu_data());
   }
 }
-
 INSTANTIATE_LAYER_GPU_FUNCS(DataLayerSparseInput);
-
 }  // namespace caffe

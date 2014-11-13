@@ -487,6 +487,7 @@ message DataSparseInputParameter {
   // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
   // be larger than the number of keys in the leveldb.
   optional uint32 rand_skip = 3 [default = 0];
+  optional DataParameter.DB backend = 4 [default = LEVELDB];
 }
 
 // Message that stores parameters used by DropoutLayer
@@ -744,15 +745,11 @@ message TanHParameter {
 
 // Message that stores the parameter for the TextDataLayer
 message TextDataParameter {
- enum DB {
-    LEVELDB = 0;
-    LMDB = 1;
-  }
   // Specify the data source.
   optional string source = 1;
   // Specify the batch size.
   optional uint32 batch_size = 2;
-  optional DB backend = 3 [default = LEVELDB];
+  optional DataParameter.DB backend = 3 [default = LEVELDB];
 }
 
 // Message that stores parameters used by ThresholdLayer

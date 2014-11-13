@@ -86,50 +86,6 @@ class BasePrefetchingDataLayer :
 };
 
 template <typename Dtype>
-class BasePrefetchingSwapDataLayer :
-    public Layer<Dtype>, public InternalThread {
- public:
-  explicit BasePrefetchingSwapDataLayer(const LayerParameter& param);
-  virtual ~BasePrefetchingSwapDataLayer() {}
-  // LayerSetUp: implements common data layer setup functionality, and calls
-  // DataLayerSetUp to do special data layer setup for individual layer types.
-  // This method may not be overridden.
-  void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-
-  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-        const vector<Blob<Dtype>*>& top) {}
-
-  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-        const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
-  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-        const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
-
-  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-
-  virtual void CreatePrefetchThread();
-  virtual void JoinPrefetchThread();
-  // The thread's function
-  virtual void InternalThreadEntry() {}
-
-  virtual int MinTopBlobs() const { return -1; }
-
- protected:
-
-  virtual void CopyData(Blob<Dtype>* top_blob);
-
-  shared_ptr<Blob<Dtype> > prefetch_data_;
-  shared_ptr<Blob<Dtype> > prefetch_data_copy_;
-  shared_ptr<Blob<Dtype> > prefetch_label_;
-  shared_ptr<Blob<Dtype> > prefetch_label_copy_;
-  Caffe::Phase phase_;
-  bool output_labels_;
-};
-
-template <typename Dtype>
 class DataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
   explicit DataLayer(const LayerParameter& param)
@@ -152,68 +108,52 @@ class DataLayer : public BasePrefetchingDataLayer<Dtype> {
   Dataset<string, Datum>::const_iterator iter_;
 };
 
-template<typename Dtype>
-void* DataLayerSparseInputPrefetch(void* layer_pointer);
-
-template<typename Dtype>
-class DataLayerSparseInput : public Layer<Dtype> {
-  // The function used to perform prefetching.
-  friend void* DataLayerSparseInputPrefetch<Dtype>(void* layer_pointer);
-
+template <typename Dtype>
+class DataLayerSparseInput : public Layer<Dtype>, public InternalThread {
  public:
   explicit DataLayerSparseInput(const LayerParameter& param)
-      : Layer<Dtype>(param) {
-  }
+      : Layer<Dtype>(param) {}
   virtual ~DataLayerSparseInput();
+
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-                     const vector<Blob<Dtype>*>& top);
+      const vector<Blob<Dtype>*>& top);
+
+  // Data layers have no bottoms, so reshaping is trivial.
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {}
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+       const vector<Blob<Dtype>*>& top);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+       const vector<Blob<Dtype>*>& top);
+
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
 
   virtual inline LayerParameter_LayerType type() const {
-      return LayerParameter_LayerType_DATA_SPARSE_INPUT;
+    return LayerParameter_LayerType_DATA_SPARSE_INPUT;
   }
-
-  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
-        const vector<Blob<Dtype>*>& top) {}
-
   virtual inline int ExactNumBottomBlobs() const { return 0; }
   virtual inline int MinTopBlobs() const { return 1; }
   virtual inline int MaxTopBlobs() const { return 2; }
 
  protected:
-  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-                           const vector<Blob<Dtype>*>& top);
-  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-                           const vector<Blob<Dtype>*>& top);
-  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-                            const vector<bool>& propagate_down,
-                            const vector<Blob<Dtype>*>& bottom) {
-    return;
-  }
-  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-                            const vector<bool>& propagate_down,
-                            const vector<Blob<Dtype>*>& bottom) {
-    return;
-  }
-
   virtual void CreatePrefetchThread();
   virtual void JoinPrefetchThread();
+  virtual void InternalThreadEntry();
 
+  Caffe::Phase phase_;
+  bool output_labels_;
 
-  int key_pos_;
-
-  shared_ptr<leveldb::DB> db_;
-  shared_ptr<leveldb::Iterator> iter_;
   int datum_size_;
-
-  pthread_t thread_;
   shared_ptr<SparseBlob<Dtype> > prefetch_data_;
   shared_ptr<SparseBlob<Dtype> > prefetch_data_copy_;
   shared_ptr<Blob<Dtype> > prefetch_label_;
   shared_ptr<Blob<Dtype> > prefetch_label_copy_;
 
-  bool output_labels_;
-  Caffe::Phase phase_;
-
+  shared_ptr<Dataset<string, SparseDatum> > dataset_;
+  Dataset<string, SparseDatum>::const_iterator iter_;
 };
 
 /**
@@ -499,45 +439,64 @@ class WindowDataLayer : public BasePrefetchingDataLayer<Dtype> {
   vector<std::pair<std::string, Datum > > image_database_cache_;
 };
 
-
-template <typename Dtype>
-class TextDataLayer : public BasePrefetchingSwapDataLayer<Dtype> {
+template<typename Dtype>
+class TextDataLayer : public Layer<Dtype>, public InternalThread {
  public:
   explicit TextDataLayer(const LayerParameter& param)
-      : BasePrefetchingSwapDataLayer<Dtype>(param) {}
+      : Layer<Dtype>(param) {
+  }
   virtual ~TextDataLayer();
-  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+                          const vector<Blob<Dtype>*>& top);
 
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top) {}
+                       const vector<Blob<Dtype>*>& top) {
+  }
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+                           const vector<Blob<Dtype>*>& top);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+                           const vector<Blob<Dtype>*>& top);
+
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+                            const vector<bool>& propagate_down,
+                            const vector<Blob<Dtype>*>& bottom) {
+  }
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+                            const vector<bool>& propagate_down,
+                            const vector<Blob<Dtype>*>& bottom) {
+  }
 
   virtual inline LayerParameter_LayerType type() const {
     return LayerParameter_LayerType_TEXT_DATA;
   }
-  virtual inline int ExactNumBottomBlobs() const { return 0; }
-  virtual inline int MinTopBlobs() const { return 2; }
-  virtual inline int MaxTopBlobs() const { return 3; }
+  virtual inline int ExactNumBottomBlobs() const {
+    return 0;
+  }
+  virtual inline int MinTopBlobs() const {
+    return 2;
+  }
+  virtual inline int MaxTopBlobs() const {
+    return 3;
+  }
 
  protected:
+  virtual void CreatePrefetchThread();
+  virtual void JoinPrefetchThread();
   virtual void InternalThreadEntry();
-  virtual void CopyData(Blob<Dtype>* top_blob);
 
-  int key_pos_;
-
-  // LEVELDB
-  shared_ptr<leveldb::DB> db_;
-  shared_ptr<leveldb::Iterator> iter_;
-  // LMDB
-  MDB_env* mdb_env_;
-  MDB_dbi mdb_dbi_;
-  MDB_txn* mdb_txn_;
-  MDB_cursor* mdb_cursor_;
-  MDB_val mdb_key_, mdb_value_;
-
-  int padding_value;
   int window_size;
   int height_data;
+
+  bool output_labels_;
+
+  shared_ptr<IntegerBlob<Dtype> > prefetch_data_;
+  shared_ptr<IntegerBlob<Dtype> > prefetch_data_copy_;
+  shared_ptr<Blob<Dtype> > prefetch_label_;
+  shared_ptr<Blob<Dtype> > prefetch_label_copy_;
+
+  shared_ptr<Dataset<string, TextDatum> > dataset_;
+  Dataset<string, TextDatum>::const_iterator iter_;
+
 };
 
 }  // namespace caffe

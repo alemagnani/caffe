@@ -42,7 +42,7 @@ void HDF5OutputLayer<Dtype>::SaveBlobs() {
 
   hdf5_save_nd_dataset(file_id_, sstm_data.str(), data_blob_);
   hdf5_save_nd_dataset(file_id_,  sstm_label.str(), label_blob_);
-  LOG(INFO) << "Successfully saved " << data_blob_.num() << " rows";
+  LOG(INFO) << "Successfully saved " << data_blob_.num() << " rows in " <<  sstm_data.str() ;
   count_++;
 }
 

@@ -1,4 +1,3 @@
-#include <leveldb/db.h>
 #include <pthread.h>
 #include <stdint.h>
 
@@ -6,65 +5,63 @@
 #include <vector>
 
 #include "caffe/common.hpp"
+#include "caffe/data_layers.hpp"
+#include "caffe/dataset_factory.hpp"
 #include "caffe/layer.hpp"
+#include "caffe/proto/caffe.pb.h"
+#include "caffe/sparse_blob.hpp"
+#include "caffe/util/benchmark.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
-#include "caffe/vision_layers.hpp"
-
-using std::string;
 
 namespace caffe {
 
+// This function is used to create a thread that prefetches the data.
 template<typename Dtype>
-void* DataLayerSparseInputPrefetch(void* layer_pointer) {
-  CHECK(layer_pointer);
-  DataLayerSparseInput<Dtype>* layer =
-      static_cast<DataLayerSparseInput<Dtype>*>(layer_pointer);
-  CHECK(layer);
-  vector<shared_ptr<SparseDatum> > datums;
-  CHECK(layer->prefetch_data_);
+void DataLayerSparseInput<Dtype>::InternalThreadEntry() {
+  CPUTimer batch_timer;
+  batch_timer.Start();
+  CPUTimer timer;
+
+  CHECK(prefetch_data_->count());
+  CHECK(prefetch_data_copy_->count());
 
   Dtype* top_label = NULL;  // suppress warnings about uninitialized variables
-  if (layer->output_labels_) {
-    top_label = layer->prefetch_label_->mutable_cpu_data();
+  if (output_labels_) {
+    top_label = prefetch_label_->mutable_cpu_data();
   }
-
-  const int batch_size = layer->layer_param_.data_sparse_input_param()
-      .batch_size();
-  const int size = layer->datum_size_;
-
+  const int batch_size =
+      this->layer_param_.data_sparse_input_param().batch_size();
+  const int size = this->datum_size_;
+  vector<shared_ptr<SparseDatum> > datums;
+  timer.Start();
   for (int item_id = 0; item_id < batch_size; ++item_id) {
-    CHECK(layer->iter_);
-    CHECK(layer->iter_->Valid());
-    shared_ptr<SparseDatum> datum(new SparseDatum());
-
-    if (layer->key_pos_ % 10000 == 0) {
-            LOG(INFO) << "Current key position: " << layer->key_pos_ << " key: "<< layer->iter_->key().ToString();
-    }
-    datum->ParseFromString(layer->iter_->value().ToString());
+    // get a blob
+    CHECK(iter_ != dataset_->end());
+    // TODO can we get rid of this copy
+    shared_ptr<SparseDatum> datum( new SparseDatum(iter_->value));
     datums.push_back(datum);
-    if (layer->output_labels_) {
+    if (output_labels_) {
       top_label[item_id] = datum->label();
     }
     // go to the next iter
-    layer->iter_->Next();
-    layer->key_pos_++;
-    if (!layer->iter_->Valid()) {
-      // We have reached the end. Restart from the first.
-      layer->iter_->SeekToFirst();
-      layer->key_pos_ = 0;
+    ++iter_;
+    if (iter_ == dataset_->end()) {
+      iter_ = dataset_->begin();
     }
   }
+  double read_time = timer.MicroSeconds();
+  timer.Start();
   int nn = 0;
   for (int i = 0; i < batch_size; i++) {
     nn += datums[i]->nn();
   }
-  layer->prefetch_data_->Reshape(batch_size, size, nn);
+  prefetch_data_->Reshape(batch_size, size, nn);
 
-  Dtype* top_data = layer->prefetch_data_->mutable_cpu_data();
-  int* indices = layer->prefetch_data_->mutable_cpu_indices();
-  int* ptr = layer->prefetch_data_->mutable_cpu_ptr();
+  Dtype* top_data = prefetch_data_->mutable_cpu_data();
+  int* indices = prefetch_data_->mutable_cpu_indices();
+  int* ptr = prefetch_data_->mutable_cpu_ptr();
 
   ptr[0] = 0;
   int pos = 0;
@@ -77,91 +74,96 @@ void* DataLayerSparseInputPrefetch(void* layer_pointer) {
     pos += d->nn();
     ptr[i + 1] = pos;
   }
-  return static_cast<void*>(NULL);
+  double write_time = timer.MicroSeconds();
+
+  batch_timer.Stop();
+  DLOG(INFO)<< "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
+  DLOG(INFO)<< "     Read time: " << read_time / 1000 << " ms.";
+  DLOG(INFO)<< "Write time: " << write_time / 1000 << " ms.";
 }
 
 template<typename Dtype>
 DataLayerSparseInput<Dtype>::~DataLayerSparseInput<Dtype>() {
   JoinPrefetchThread();
+  // clean up the dataset resources
+  dataset_->close();
+}
+
+template<typename Dtype>
+void DataLayerSparseInput<Dtype>::CreatePrefetchThread() {
+  this->phase_ = Caffe::phase();
+  CHECK(StartInternalThread()) << "Thread execution failed";
+}
+
+template<typename Dtype>
+void DataLayerSparseInput<Dtype>::JoinPrefetchThread() {
+  CHECK(WaitForInternalThreadToExit()) << "Thread joining failed";
 }
 
 template<typename Dtype>
 void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-                                        const vector<Blob<Dtype>*>& top) {
-  CHECK_EQ(bottom.size(), 0)<< "Data Layer takes no input blobs.";
-  CHECK_GE(top.size(), 1) << "Data Layer takes at least one blob as output.";
-  CHECK_LE(top.size(), 2) << "Data Layer takes at most two blobs as output.";
+                                             const vector<Blob<Dtype>*>& top) {
   if (top.size() == 1) {
     output_labels_ = false;
   } else {
     output_labels_ = true;
   }
-  // Initialize the leveldb
-  leveldb::DB* db_temp;
-  leveldb::Options options;
-  options.create_if_missing = false;
-  options.max_open_files = 100;
-  LOG(INFO) << "Opening leveldb "
-      << this->layer_param_.data_sparse_input_param().source();
-  leveldb::Status status = leveldb::DB::Open(
-      options, this->layer_param_.data_sparse_input_param().source(), &db_temp);
-  CHECK(status.ok()) << "Failed to open leveldb "
-  << this->layer_param_.data_sparse_input_param().source() << std::endl
-  << status.ToString();
-  db_.reset(db_temp);
-  iter_.reset(db_->NewIterator(leveldb::ReadOptions()));
-  iter_->SeekToFirst();
-  key_pos_ = 0;
+
+  // Initialize DB
+  dataset_ = DatasetFactory<string, SparseDatum>(
+      this->layer_param_.data_sparse_input_param().backend());
+  const string& source = this->layer_param_.data_sparse_input_param().source();
+  LOG(INFO)<< "Opening dataset " << source;
+  CHECK(dataset_->open(source, Dataset<string, SparseDatum>::ReadOnly));
+  iter_ = dataset_->begin();
 
   // Check if we would need to randomly skip a few data points
   if (this->layer_param_.data_sparse_input_param().rand_skip()) {
-    unsigned int skip = caffe_rng_rand() %
-    this->layer_param_.data_sparse_input_param().rand_skip();
-    LOG(INFO) << "Skipping first " << skip << " data points.";
+    unsigned int skip = caffe_rng_rand()
+        % this->layer_param_.data_sparse_input_param().rand_skip();
+    LOG(INFO)<< "Skipping first " << skip << " data points.";
     while (skip-- > 0) {
-      iter_->Next();
-      key_pos_++;
-      if (!iter_->Valid()) {
-        iter_->SeekToFirst();
-        key_pos_ = 0;
+      if (++iter_ == dataset_->end()) {
+        iter_ = dataset_->begin();
       }
     }
   }
   // Read a data point, and use it to initialize the top blob.
-  SparseDatum datum;
-  datum.ParseFromString(iter_->value().ToString());
+  CHECK(iter_ != dataset_->end());
+  SparseDatum datum = iter_->value;
 
-  if ( SparseBlob<Dtype> * sparseBlob =
-      dynamic_cast<SparseBlob<Dtype>*>(top[0])) {
-    sparseBlob -> Reshape(
-        this->layer_param_.data_sparse_input_param().batch_size(),
-                          datum.size(), 1);
+  if (SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>(
+      top[0])) {
+    sparseBlob->Reshape(
+        this->layer_param_.data_sparse_input_param().batch_size(), datum.size(),
+        1);
   } else {
-    LOG(FATAL) << "The top blob in the data layer sparse is not sparse\n";
+    LOG(FATAL)<< "The top blob in the data layer sparse is not sparse\n";
   }
-  prefetch_data_.reset(new SparseBlob<Dtype>(
-      this->layer_param_.data_sparse_input_param().batch_size(),
-      datum.size(), 1));
-  prefetch_data_copy_.reset(new SparseBlob<Dtype>(
-      this->layer_param_.data_sparse_input_param().batch_size(),
-      datum.size(), 1));
+  prefetch_data_.reset(
+      new SparseBlob<Dtype>(
+          this->layer_param_.data_sparse_input_param().batch_size(),
+          datum.size(), 1));
+  prefetch_data_copy_.reset(
+      new SparseBlob<Dtype>(
+          this->layer_param_.data_sparse_input_param().batch_size(),
+          datum.size(), 1));
 
-  LOG(INFO) << "output data size: " << top[0]->num() << ","
+  LOG(INFO)<< "output data size: " << top[0]->num() << ","
   << top[0]->channels() << "," << top[0]->height() << ","
   << top[0]->width();
   // label
   if (output_labels_) {
-    top[1]->Reshape(
-        this->layer_param_.data_sparse_input_param().batch_size(),
-        1, 1, 1);
-    prefetch_label_.reset(
+    top[1]->Reshape(this->layer_param_.data_sparse_input_param().batch_size(),
+                    1, 1, 1);
+    this->prefetch_label_.reset(
         new Blob<Dtype>(
-            this->layer_param_.data_sparse_input_param().batch_size(),
-            1, 1, 1));
+            this->layer_param_.data_sparse_input_param().batch_size(), 1, 1,
+            1));
     prefetch_label_copy_.reset(
         new Blob<Dtype>(
-            this->layer_param_.data_sparse_input_param().batch_size(),
-            1, 1, 1));
+            this->layer_param_.data_sparse_input_param().batch_size(), 1, 1,
+            1));
   }
   datum_size_ = datum.size();
 
@@ -173,21 +175,9 @@ void DataLayerSparseInput<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   if (output_labels_) {
     prefetch_label_->mutable_cpu_data();
   }
-  DLOG(INFO) << "Initializing prefetch";
+  DLOG(INFO)<< "Initializing prefetch";
   CreatePrefetchThread();
-  DLOG(INFO) << "Prefetch initialized.";
-}
-
-template<typename Dtype>
-void DataLayerSparseInput<Dtype>::CreatePrefetchThread() {
-  // Create the thread.
-  CHECK(!pthread_create(&thread_, NULL, DataLayerSparseInputPrefetch<Dtype>,
-          static_cast<void*>(this))) << "Pthread execution failed.";
-}
-
-template<typename Dtype>
-void DataLayerSparseInput<Dtype>::JoinPrefetchThread() {
-  CHECK(!pthread_join(thread_, NULL)) << "Pthread joining failed.";
+  DLOG(INFO)<< "Prefetch initialized.";
 }
 
 template<typename Dtype>
@@ -202,8 +192,8 @@ void DataLayerSparseInput<Dtype>::Forward_cpu(
   // Start a new prefetch thread ahead of any memory transfer
   CreatePrefetchThread();
 
-  if (SparseBlob<Dtype> * sparseBlob =
-      dynamic_cast<SparseBlob<Dtype>*>(top[0])) {
+  if (SparseBlob<Dtype> * sparseBlob = dynamic_cast<SparseBlob<Dtype>*>(
+      top[0])) {
     sparseBlob->set_cpu_data(
         const_cast<Dtype*>(prefetch_data_copy_->cpu_data()),
         const_cast<int*>(prefetch_data_copy_->cpu_indices()),
