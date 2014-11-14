@@ -13,14 +13,14 @@ namespace caffe {
 template <typename Dtype>
 void LookupTableLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom,
-    vector<Blob<Dtype>*>* top) {
+    const vector<Blob<Dtype>*>& top) {
   IntegerBlob<Dtype> * bottomIntegerBlob =
             dynamic_cast<IntegerBlob<Dtype>*>(bottom[0]);
     if (bottomIntegerBlob == 0) {
       LOG(FATAL)<< "the bottom blob is not an instance of IntegerBlob";
     }
     const int* bottom_data = bottomIntegerBlob->cpu_indices();
-    Dtype* top_data = (*top)[0]->mutable_gpu_data();
+    Dtype* top_data = top[0]->mutable_gpu_data();
     const Dtype* weight = this->blobs_[0]->gpu_data();
 
     caffe_gpu_scal(NUM_ * INPUT_SIZE_ * SIZE_, (Dtype) 0.0, top_data);
@@ -40,12 +40,12 @@ template <typename Dtype>
 void LookupTableLayer<Dtype>::Backward_gpu(
     const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
-    vector<Blob<Dtype>*>* bottom) {
+    const vector<Blob<Dtype>*>& bottom) {
   if (this->param_propagate_down_[0]) {
       const Dtype* top_diff = top[0]->gpu_diff();
 
       IntegerBlob<Dtype> * bottomIntegerBlob =
-          dynamic_cast<IntegerBlob<Dtype>*>((*bottom)[0]);
+          dynamic_cast<IntegerBlob<Dtype>*>(bottom[0]);
       if (bottomIntegerBlob == 0) {
         LOG(FATAL)<< "the bottom blob is not an instance of IntegerBlob";
       }
@@ -66,6 +66,6 @@ void LookupTableLayer<Dtype>::Backward_gpu(
     }
 }
 
-INSTANTIATE_CLASS(LookupTableLayer);
+INSTANTIATE_LAYER_GPU_FUNCS(LookupTableLayer);
 
 }  // namespace caffe

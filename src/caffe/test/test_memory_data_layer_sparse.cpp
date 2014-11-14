@@ -72,7 +72,7 @@ TYPED_TEST(MemoryDataLayerSparseTest, TestSetup) {
 
   shared_ptr<Layer<TypeParam> > layer(
       new MemoryDataLayerSparse<TypeParam>(layer_param));
-  layer->SetUp(this->blob_bottom_vec_, &(this->blob_top_vec_));
+  layer->SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   EXPECT_EQ(this->data_blob_->num(), this->batch_size_);
   EXPECT_EQ(this->data_blob_->channels(), this->channels_);
   EXPECT_EQ(this->data_blob_->height(), 1);
@@ -91,7 +91,7 @@ TYPED_TEST(MemoryDataLayerSparseTest, TestForward) {
   md_param->set_size(this->channels_);
   shared_ptr<MemoryDataLayerSparse<TypeParam> > layer(
       new MemoryDataLayerSparse<TypeParam>(layer_param));
-  layer->SetUp(this->blob_bottom_vec_, &(this->blob_top_vec_));
+  layer->SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
 
   layer->Reset(this->data_->mutable_cpu_data(), this->data_->mutable_cpu_indices(),this->data_->mutable_cpu_ptr(),
       this->labels_->mutable_cpu_data(), this->data_->num() ,this->data_->channels());
@@ -99,7 +99,7 @@ TYPED_TEST(MemoryDataLayerSparseTest, TestForward) {
   for (int i = 0; i < this->batches_ * 6; ++i) {
     int batch_num = i % this->batches_;
     int pos = batch_num * this->batch_size_;
-    layer->Forward(this->blob_bottom_vec_, &(this->blob_top_vec_));
+    layer->Forward(this->blob_bottom_vec_, this->blob_top_vec_);
 
     const TypeParam* d = this->data_blob_->cpu_data();
     const int* ind = this->data_blob_->cpu_indices();

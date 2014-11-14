@@ -2,6 +2,9 @@
 // caffe::Caffe functions so that one could easily call it from Python.
 // Note that for Python, we will simply use float as the data type.
 
+#include <Python.h>  // NOLINT(build/include_alpha)
+
+#include <boost/make_shared.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 // these need to be included after boost on OS X
@@ -120,8 +123,8 @@ void PyNet::set_input_arrays(bp::object data_obj, bp::object labels_obj) {
       reinterpret_cast<PyArrayObject*>(data_obj.ptr());
   PyArrayObject* labels_arr =
       reinterpret_cast<PyArrayObject*>(labels_obj.ptr());
-  check_contiguous_array(data_arr, "data array", md_layer->datum_channels(),
-      md_layer->datum_height(), md_layer->datum_width());
+  check_contiguous_array(data_arr, "data array", md_layer->channels(),
+      md_layer->height(), md_layer->width());
   check_contiguous_array(labels_arr, "labels array", 1, 1, 1);
   if (PyArray_DIMS(data_arr)[0] != PyArray_DIMS(labels_arr)[0]) {
     throw std::runtime_error("data and labels must have the same first"
@@ -140,6 +143,7 @@ void PyNet::set_input_arrays(bp::object data_obj, bp::object labels_obj) {
       static_cast<float*>(PyArray_DATA(labels_arr)),
       PyArray_DIMS(data_arr)[0]);
 }
+
 
 void PyNet::set_input_sparse_arrays(bp::object data_obj, bp::object indices_obj, bp::object ptr_obj, int rows, int cols, bp::object labels_obj) {
     // check that this network has an input MemoryDataLayerSparse
@@ -228,11 +232,16 @@ PySGDSolver::PySGDSolver(const string& param_file_or_param_txt_serialized, bool 
     // we need to explicitly store the net wrapper, rather than constructing
     // it on the fly, so that it can hold references to Python objects
     net_.reset(new PyNet(solver_->net()));
+    for (int i = 0; i < solver_->test_nets().size(); ++i) {
+        test_nets_.push_back(boost::make_shared<PyNet>(solver_->test_nets()[i]));
+      }
   }
 
-void PySGDSolver::snapshot(const string& filename){
-    solver_->Snapshot(filename);
-}
+  void PySGDSolver::snapshot(const string& filename){
+      solver_->Snapshot(filename);
+  }
+
+
 
 
 void PySGDSolver::SolveResume(const string& resume_file) {
@@ -247,8 +256,11 @@ BOOST_PYTHON_MODULE(_caffe) {
       "Net", bp::init<string, string>())
       .def(bp::init<string>())
       .def(bp::init<string,string,bool>())
+      .def("copy_from",             &PyNet::CopyTrainedLayersFrom)
+      .def("share_with",            &PyNet::ShareTrainedLayersWith)
       .def("_forward",              &PyNet::Forward)
       .def("_backward",             &PyNet::Backward)
+      .def("reshape",               &PyNet::Reshape)
       .def("set_mode_cpu",          &PyNet::set_mode_cpu)
       .def("set_mode_gpu",          &PyNet::set_mode_gpu)
       .def("set_phase_train",       &PyNet::set_phase_train)
@@ -286,10 +298,15 @@ BOOST_PYTHON_MODULE(_caffe) {
   bp::class_<PySGDSolver, boost::noncopyable>(
       "SGDSolver", bp::init<string>())
       .def(bp::init<string,bool>())
-      .add_property("net", &PySGDSolver::net)
-      .def("solve",        &PySGDSolver::Solve)
-      .def("solve",        &PySGDSolver::SolveResume)
+      .add_property("net",       &PySGDSolver::net)
+      .add_property("test_nets", &PySGDSolver::test_nets)
+      .add_property("iter",      &PySGDSolver::iter)
+      .def("solve",              &PySGDSolver::Solve)
+      .def("solve",              &PySGDSolver::SolveResume)
       .def("snapshot",     &PySGDSolver::snapshot);
+
+  bp::class_<vector<shared_ptr<PyNet> > >("NetVec")
+      .def(bp::vector_indexing_suite<vector<shared_ptr<PyNet> >, true>());
 
   bp::class_<vector<PyBlob<float> > >("BlobVec")
       .def(bp::vector_indexing_suite<vector<PyBlob<float> >, true>());

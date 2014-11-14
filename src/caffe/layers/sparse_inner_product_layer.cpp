@@ -11,7 +11,7 @@ namespace caffe {
 template <typename Dtype>
 void SparseInnerProductLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom,
-    vector<Blob<Dtype>*>* top) {
+    const vector<Blob<Dtype>*>& top) {
   SparseBlob<Dtype> * bottomSparseBlob =
         dynamic_cast<SparseBlob<Dtype>*>(bottom[0]);
 
@@ -24,7 +24,7 @@ void SparseInnerProductLayer<Dtype>::Forward_cpu(
   const int* bottom_ptr = bottomSparseBlob->cpu_ptr();
   const int nzz = bottomSparseBlob->nzz();
 
-  Dtype* top_data = (*top)[0]->mutable_cpu_data();
+  Dtype* top_data = top[0]->mutable_cpu_data();
   const Dtype* weight = this->blobs_[0]->cpu_data();
 
   caffe_cpu_csr_gemm<Dtype>(CblasNoTrans, CblasTrans, this->M_,
@@ -45,10 +45,10 @@ template <typename Dtype>
 void SparseInnerProductLayer<Dtype>::Backward_cpu(
     const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
-    vector<Blob<Dtype>*>* bottom) {
+    const vector<Blob<Dtype>*>& bottom) {
 
   SparseBlob<Dtype> * bottomSparseBlob =
-          dynamic_cast<SparseBlob<Dtype>*>((*bottom)[0]);
+          dynamic_cast<SparseBlob<Dtype>*>(bottom[0]);
   // fall back to dense computation
   if (bottomSparseBlob == 0) {
       InnerProductLayer<Dtype>::Backward_cpu(top, propagate_down, bottom);
@@ -90,6 +90,7 @@ STUB_GPU(SparseInnerProductLayer);
 #endif
 
 INSTANTIATE_CLASS(SparseInnerProductLayer);
+REGISTER_LAYER_CLASS(SPARSE_INNER_PRODUCT, SparseInnerProductLayer);
 
 }  // namespace caffe
 

@@ -1,4 +1,3 @@
-#include <leveldb/db.h>
 #include <stdint.h>
 
 #include <string>
@@ -6,6 +5,7 @@
 
 #include "caffe/common.hpp"
 #include "caffe/data_layers.hpp"
+#include "caffe/dataset_factory.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/io.hpp"
@@ -14,79 +14,44 @@
 
 namespace caffe {
 
-template <typename Dtype>
+template<typename Dtype>
 TextDataLayer<Dtype>::~TextDataLayer<Dtype>() {
-  this->JoinPrefetchThread();
-  // clean up the database resources
-  switch (this->layer_param_.text_data_param().backend()) {
-  case TextDataParameter_DB_LEVELDB:
-    break;  // do nothing
-  case TextDataParameter_DB_LMDB:
-    mdb_cursor_close(mdb_cursor_);
-    mdb_close(mdb_env_, mdb_dbi_);
-    mdb_txn_abort(mdb_txn_);
-    mdb_env_close(mdb_env_);
-    break;
-  default:
-    LOG(FATAL) << "Unknown database backend";
-  }
+  JoinPrefetchThread();
+  // clean up the dataset resources
+  dataset_->close();
 }
 
-template <typename Dtype>
-void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top) {
+template<typename Dtype>
+void TextDataLayer<Dtype>::CreatePrefetchThread() {
+  CHECK(StartInternalThread()) << "Thread execution failed";
+}
+
+template<typename Dtype>
+void TextDataLayer<Dtype>::JoinPrefetchThread() {
+  CHECK(WaitForInternalThreadToExit()) << "Thread joining failed";
+}
+
+template<typename Dtype>
+void TextDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+                                      const vector<Blob<Dtype>*>& top) {
+
+  if (top.size() == MinTopBlobs()) {
+    output_labels_ = false;
+  } else {
+    output_labels_ = true;
+  }
 
   // Initialize DB
-  switch (this->layer_param_.text_data_param().backend()) {
-  case TextDataParameter_DB_LEVELDB:
-    {
-    leveldb::DB* db_temp;
-    leveldb::Options options = GetLevelDBOptions();
-    options.create_if_missing = false;
-    LOG(INFO) << "Opening leveldb " << this->layer_param_.text_data_param().source();
-    leveldb::Status status = leveldb::DB::Open(
-        options, this->layer_param_.text_data_param().source(), &db_temp);
-    CHECK(status.ok()) << "Failed to open leveldb "
-                       << this->layer_param_.text_data_param().source() << std::endl
-                       << status.ToString();
-    db_.reset(db_temp);
-    iter_.reset(db_->NewIterator(leveldb::ReadOptions()));
-    iter_->SeekToFirst();
-    }
-    break;
-  case TextDataParameter_DB_LMDB:
-    CHECK_EQ(mdb_env_create(&mdb_env_), MDB_SUCCESS) << "mdb_env_create failed";
-    CHECK_EQ(mdb_env_set_mapsize(mdb_env_, 1099511627776), MDB_SUCCESS);  // 1TB
-    CHECK_EQ(mdb_env_open(mdb_env_,
-             this->layer_param_.text_data_param().source().c_str(),
-             MDB_RDONLY|MDB_NOTLS, 0664), MDB_SUCCESS) << "mdb_env_open failed";
-    CHECK_EQ(mdb_txn_begin(mdb_env_, NULL, MDB_RDONLY, &mdb_txn_), MDB_SUCCESS)
-        << "mdb_txn_begin failed";
-    CHECK_EQ(mdb_open(mdb_txn_, NULL, 0, &mdb_dbi_), MDB_SUCCESS)
-        << "mdb_open failed";
-    CHECK_EQ(mdb_cursor_open(mdb_txn_, mdb_dbi_, &mdb_cursor_), MDB_SUCCESS)
-        << "mdb_cursor_open failed";
-    LOG(INFO) << "Opening lmdb " << this->layer_param_.text_data_param().source();
-    CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_, &mdb_value_, MDB_FIRST),
-        MDB_SUCCESS) << "mdb_cursor_get failed";
-    break;
-  default:
-    LOG(FATAL) << "Unknown database backend";
-  }
-  key_pos_ = 0;
+  dataset_ = DatasetFactory<string, TextDatum>(
+      this->layer_param_.text_data_param().backend());
+  const string& source = this->layer_param_.text_data_param().source();
+  LOG(INFO)<< "Opening dataset " << source;
+  CHECK(dataset_->open(source, Dataset<string, TextDatum>::ReadOnly));
+  iter_ = dataset_->begin();
 
   // Read a data point, and use it to initialize the top blob.
-  TextDatum datum;
-  switch (this->layer_param_.text_data_param().backend()) {
-  case TextDataParameter_DB_LEVELDB:
-    datum.ParseFromString(iter_->value().ToString());
-    break;
-  case TextDataParameter_DB_LMDB:
-    datum.ParseFromArray(mdb_value_.mv_data, mdb_value_.mv_size);
-    break;
-  default:
-    LOG(FATAL) << "Unknown database backend";
-  }
+  CHECK(iter_ != dataset_->end());
+  TextDatum datum = iter_->value;
   height_data = datum.height_data();
   window_size = datum.size();
 
@@ -95,81 +60,67 @@ void TextDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   this->prefetch_label_.reset(new Blob<Dtype>());
   this->prefetch_label_copy_.reset(new Blob<Dtype>());
 
-  (*top)[0]->Reshape(
-        this->layer_param_.text_data_param().batch_size(),height_data, window_size, 1);
-  (*top)[1]->Reshape(
-          this->layer_param_.text_data_param().batch_size(),height_data, window_size, 1);
+  top[0]->Reshape(this->layer_param_.text_data_param().batch_size(),
+                  height_data, window_size, 1);
+  top[1]->Reshape(this->layer_param_.text_data_param().batch_size(),
+                  height_data, window_size, 1);
 
-  this->prefetch_data_->Reshape(this->layer_param_.text_data_param().batch_size(), height_data, window_size, 1);
-  this->prefetch_data_copy_->Reshape(this->layer_param_.text_data_param().batch_size(), height_data, window_size, 1);
-  LOG(INFO) << "output data size: " << (*top)[0]->num() << ","
-      << (*top)[0]->channels() << "," << (*top)[0]->height() << ","
-      << (*top)[0]->width();
+  this->prefetch_data_->Reshape(
+      this->layer_param_.text_data_param().batch_size(), height_data,
+      window_size, 1);
+  this->prefetch_data_copy_->Reshape(
+      this->layer_param_.text_data_param().batch_size(), height_data,
+      window_size, 1);
+  LOG(INFO)<< "output data size: " << top[0]->num() << ","
+  << top[0]->channels() << "," << top[0]->height() << ","
+  << top[0]->width();
   // label
   if (this->output_labels_) {
-    (*top)[2]->Reshape(this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
-    this->prefetch_label_->Reshape(this->layer_param_.text_data_param().batch_size(),
-        1, 1, 1);
-    this->prefetch_label_copy_->Reshape(this->layer_param_.text_data_param().batch_size(),
-            1, 1, 1);
+    top[2]->Reshape(this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
+    this->prefetch_label_->Reshape(
+        this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
+    this->prefetch_label_copy_->Reshape(
+        this->layer_param_.text_data_param().batch_size(), 1, 1, 1);
   }
-}
 
-template <typename Dtype>
-void TextDataLayer<Dtype>::CopyData(Blob<Dtype>* top_blob){
-  // Copy the data
-  top_blob->ShareData(*this->prefetch_data_copy_.get());
+  // Now, start the prefetch thread. Before calling prefetch, we make two
+  // cpu_data calls so that the prefetch thread does not accidentally make
+  // simultaneous cudaMalloc calls when the main thread is running. In some
+  // GPUs this seems to cause failures if we do not so.
+  prefetch_data_->mutable_cpu_data();
+  if (output_labels_) {
+    prefetch_label_->mutable_cpu_data();
+  }
+  DLOG(INFO)<< "Initializing prefetch";
+  CreatePrefetchThread();
+  DLOG(INFO)<< "Prefetch initialized.";
+
 }
 
 // This function is used to create a thread that prefetches the data.
-template <typename Dtype>
+template<typename Dtype>
 void TextDataLayer<Dtype>::InternalThreadEntry() {
-  TextDatum datum;
-  CHECK(this->prefetch_data_->count());
+  CHECK(prefetch_data_->count());
 
-  Dtype* top_data = this->prefetch_data_->mutable_cpu_data();
-  IntegerBlob<Dtype> * integerBlob =
-          dynamic_cast<IntegerBlob<Dtype>*>(this->prefetch_data_.get());
-
-  int* int_data = integerBlob->mutable_cpu_indices();
+  Dtype* top_data = prefetch_data_->mutable_cpu_data();
+  int* int_data = prefetch_data_->mutable_cpu_indices();
 
   Dtype* top_label = NULL;  // suppress warnings about uninitialized variables
   if (this->output_labels_) {
     top_label = this->prefetch_label_->mutable_cpu_data();
   }
   const int batch_size = this->layer_param_.text_data_param().batch_size();
-
   const int dtype_size = height_data * window_size;
 
   for (int item_id = 0; item_id < batch_size; ++item_id) {
-    // get a blob
-    switch (this->layer_param_.text_data_param().backend()) {
-    case TextDataParameter_DB_LEVELDB:
-      CHECK(iter_);
-      CHECK(iter_->Valid());
-      datum.ParseFromString(iter_->value().ToString());
-
-      if (key_pos_ % 10000 == 0) {
-        LOG(INFO) << "Current key position: " << key_pos_ << " key: "<< iter_->key().ToString();
-      }
-
-      break;
-    case TextDataParameter_DB_LMDB:
-      CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_,
-              &mdb_value_, MDB_GET_CURRENT), MDB_SUCCESS);
-      datum.ParseFromArray(mdb_value_.mv_data,
-          mdb_value_.mv_size);
-      break;
-    default:
-      LOG(FATAL) << "Unknown database backend";
-    }
+    const TextDatum& datum = iter_->value;
 
     Dtype* destination = top_data + item_id * dtype_size;
-    for (int k=0; k < dtype_size; k++) {
+    for (int k = 0; k < dtype_size; k++) {
       destination[k] = datum.data(k);
     }
     int * int_destination = int_data + item_id * window_size;
-    for (int k=0; k < window_size; k++) {
+    for (int k = 0; k < window_size; k++) {
       int_destination[k] = datum.indices(k);
     }
 
@@ -177,36 +128,40 @@ void TextDataLayer<Dtype>::InternalThreadEntry() {
       top_label[item_id] = datum.label();
     }
 
-    // go to the next iter
-    switch (this->layer_param_.text_data_param().backend()) {
-    case TextDataParameter_DB_LEVELDB:
-      iter_->Next();
-      key_pos_++;
-      if (!iter_->Valid()) {
-        // We have reached the end. Restart from the first.
-        // DLOG(INFO) << "Restarting data prefetching from start.";
-        iter_->SeekToFirst();
-        key_pos_ = 0;
-      }
-      break;
-    case TextDataParameter_DB_LMDB:
-      if (mdb_cursor_get(mdb_cursor_, &mdb_key_,
-              &mdb_value_, MDB_NEXT) != MDB_SUCCESS) {
-        // We have reached the end. Restart from the first.
-        DLOG(INFO) << "Restarting data prefetching from start.";
-        CHECK_EQ(mdb_cursor_get(mdb_cursor_, &mdb_key_,
-                &mdb_value_, MDB_FIRST), MDB_SUCCESS);
-        key_pos_ = 0;
-      } else {
-        key_pos_++;
-      }
-      break;
-    default:
-      LOG(FATAL) << "Unknown database backend";
+    ++iter_;
+    if (iter_ == dataset_->end()) {
+      iter_ = dataset_->begin();
     }
   }
 }
 
+template<typename Dtype>
+void TextDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+                                       const vector<Blob<Dtype>*>& top) {
+  // First, join the thread
+  JoinPrefetchThread();
+  // we swap the prefetch data
+  prefetch_data_.swap(prefetch_data_copy_);
+  prefetch_label_.swap(prefetch_label_copy_);
+
+  // Start a new prefetch thread ahead of any memory transfer
+  CreatePrefetchThread();
+
+  for (int k = 0; k < MinTopBlobs(); k++) {
+    top[k]->ShareData(*prefetch_data_copy_.get());
+  }
+
+  if (output_labels_) {
+    caffe_copy(prefetch_label_copy_->count(), prefetch_label_copy_->cpu_data(),
+               top[MinTopBlobs()]->mutable_cpu_data());
+  }
+}
+
+#ifdef CPU_ONLY
+STUB_GPU_FORWARD(TextDataLayer, Forward);
+#endif
+
 INSTANTIATE_CLASS(TextDataLayer);
+REGISTER_LAYER_CLASS(TEXT_DATA, TextDataLayer);
 
 }  // namespace caffe

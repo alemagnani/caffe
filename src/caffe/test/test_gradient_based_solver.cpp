@@ -234,7 +234,7 @@ class GradientBasedSolverTest : public MultiDeviceTest<TypeParam> {
     ASSERT_EQ(2, param_blobs.size());
     const Blob<Dtype>& solver_updated_weights = *param_blobs[0];
     ASSERT_EQ(D, solver_updated_weights.count());
-    const double kPrecision = 1e-3;
+    const double kPrecision = 1e-2;
     const double kMinPrecision = 1e-7;
     for (int i = 0; i < D; ++i) {
       const Dtype expected_updated_weight = updated_weights.cpu_data()[i];
@@ -323,7 +323,6 @@ class SGDSolverTest : public GradientBasedSolverTest<TypeParam> {
 TYPED_TEST_CASE(SGDSolverTest, TestDtypesAndDevices);
 
 TYPED_TEST(SGDSolverTest, TestLeastSquaresUpdate) {
-  typedef typename TypeParam::Dtype Dtype;
   this->TestLeastSquaresUpdate();
 }
 
@@ -390,7 +389,6 @@ class AdaGradSolverTest : public GradientBasedSolverTest<TypeParam> {
 TYPED_TEST_CASE(AdaGradSolverTest, TestDtypesAndDevices);
 
 TYPED_TEST(AdaGradSolverTest, TestAdaGradLeastSquaresUpdate) {
-  typedef typename TypeParam::Dtype Dtype;
   this->TestLeastSquaresUpdate();
 }
 
@@ -435,7 +433,6 @@ class NesterovSolverTest : public GradientBasedSolverTest<TypeParam> {
 TYPED_TEST_CASE(NesterovSolverTest, TestDtypesAndDevices);
 
 TYPED_TEST(NesterovSolverTest, TestNesterovLeastSquaresUpdate) {
-  typedef typename TypeParam::Dtype Dtype;
   this->TestLeastSquaresUpdate();
 }
 

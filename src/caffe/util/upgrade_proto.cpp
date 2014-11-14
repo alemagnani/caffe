@@ -285,6 +285,14 @@ bool UpgradeLayerParameter(const LayerParameter& v0_layer_connection,
         is_fully_compatible = false;
       }
     }
+    if (v0_layer_param.has_k()) {
+      if (type == "lrn") {
+        layer_param->mutable_lrn_param()->set_k(v0_layer_param.k());
+      } else {
+        LOG(ERROR) << "Unknown parameter k for layer type " << type;
+        is_fully_compatible = false;
+      }
+    }
     if (v0_layer_param.has_source()) {
       if (type == "data") {
         layer_param->mutable_data_param()->set_source(v0_layer_param.source());
@@ -522,6 +530,13 @@ bool NetNeedsDataUpgrade(const NetParameter& net_param) {
       if (layer_param.has_crop_size()) { return true; }
       if (layer_param.has_mirror()) { return true; }
     }
+    if (net_param.layers(i).type() == LayerParameter_LayerType_WINDOW_DATA) {
+      WindowDataParameter layer_param = net_param.layers(i).window_data_param();
+      if (layer_param.has_scale()) { return true; }
+      if (layer_param.has_mean_file()) { return true; }
+      if (layer_param.has_crop_size()) { return true; }
+      if (layer_param.has_mirror()) { return true; }
+    }
   }
   return false;
 }
@@ -556,6 +571,7 @@ void UpgradeNetDataTransformation(NetParameter* net_param) {
   for (int i = 0; i < net_param->layers_size(); ++i) {
     CONVERT_LAYER_TRANSFORM_PARAM(DATA, Data, data);
     CONVERT_LAYER_TRANSFORM_PARAM(IMAGE_DATA, ImageData, image_data);
+    CONVERT_LAYER_TRANSFORM_PARAM(WINDOW_DATA, WindowData, window_data);
   }
 }
 

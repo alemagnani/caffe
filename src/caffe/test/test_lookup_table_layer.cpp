@@ -54,7 +54,7 @@ TYPED_TEST(LookupTableLayerTest, TestSetUp) {
   lookup_table_param->set_n_index(100);
   shared_ptr<LookupTableLayer<Dtype> > layer(
       new LookupTableLayer<Dtype>(layer_param));
-  layer->SetUp(this->blob_bottom_vec_, &(this->blob_top_vec_));
+  layer->SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   EXPECT_EQ(this->blob_top_->num(), 2);
   EXPECT_EQ(this->blob_top_->height(), 3);
   EXPECT_EQ(this->blob_top_->width(), 1);
@@ -79,8 +79,8 @@ TYPED_TEST(LookupTableLayerTest, TestForward) {
     lookup_table_param->mutable_weight_filler()->set_max(2);
     shared_ptr<LookupTableLayer<Dtype> > layer(
         new LookupTableLayer<Dtype>(layer_param));
-    layer->SetUp(this->blob_bottom_vec_, &(this->blob_top_vec_));
-    layer->Forward(this->blob_bottom_vec_, &(this->blob_top_vec_));
+    layer->SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+    layer->Forward(this->blob_bottom_vec_, this->blob_top_vec_);
     const Dtype* data = this->blob_top_->cpu_data();
     const int count = this->blob_top_->count();
     for (int i = 0; i < count; ++i) {
@@ -108,8 +108,8 @@ TYPED_TEST(LookupTableLayerTest, TestGradient) {
     lookup_table_param->mutable_weight_filler()->set_type("gaussian");
     LookupTableLayer<Dtype> layer(layer_param);
     GradientChecker<Dtype> checker(1e-2, 1e-3);
-    checker.CheckGradientExhaustive(&layer, &(this->blob_bottom_vec_),
-        &(this->blob_top_vec_), -2);
+    checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+        this->blob_top_vec_, -2);
   } else {
     LOG(ERROR) << "Skipping test due to old architecture.";
   }
